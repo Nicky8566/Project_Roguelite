@@ -1,84 +1,121 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using DefaultEcs;
+using RogueliteGame.Components;
+using RogueliteGame.Systems;
+using System;
 
-namespace RogueliteGame;
-
-public class Game1 : Game
+namespace RogueliteGame
 {
-    private GraphicsDeviceManager _graphics;
-    private SpriteBatch _spriteBatch;
-
-    // Player variables
-    private Vector2 playerPosition;
-    private float playerSpeed = 200f; // pixels per second
-    private Texture2D pixelTexture; // For drawing rectangles
-
-    public Game1()
+    public class Game1 : Game
     {
-        _graphics = new GraphicsDeviceManager(this);
-        Content.RootDirectory = "Content";
-        IsMouseVisible = true;
-    }
+        private GraphicsDeviceManager _graphics;
+        private SpriteBatch _spriteBatch;
 
-    protected override void Initialize()
-    {
-        // Set starting position (center of 800x600 window)
-        playerPosition = new Vector2(400, 300);
-        
-        base.Initialize();
-    }
+        // ECS World and Systems
+        private World world;
+        private MovementSystem movementSystem;
+        private InputSystem inputSystem;
+        private RenderSystem renderSystem;
+        private BounceSystem bounceSystem;
+        public Game1()
+        {
+            _graphics = new GraphicsDeviceManager(this);
+            Content.RootDirectory = "Content";
+            IsMouseVisible = true;
+        }
 
-    protected override void LoadContent()
-    {
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
+        protected override void Initialize()
+        {
+            // Create the ECS world (holds all entities)
+            world = new World();
 
-        // Create a 1x1 white pixel for drawing rectangles
-        pixelTexture = new Texture2D(GraphicsDevice, 1, 1);
-        pixelTexture.SetData(new[] { Color.White });
-    }
+            // Create systems
+            movementSystem = new MovementSystem(world);
+            inputSystem = new InputSystem(world);
+            bounceSystem = new BounceSystem(world);
 
-    protected override void Update(GameTime gameTime)
-    {
-        if (Keyboard.GetState().IsKeyDown(Keys.Escape))
-            Exit();
+            // ===== CREATE PLAYER =====
+            Entity player = world.CreateEntity();
+            player.Set(new Transform { Position = new Vector2(400, 300) });
+            player.Set(new Velocity { Value = Vector2.Zero });
+            player.Set(new PlayerTag()); // Mark it as the player
+            player.Set(new Health { Current = 100, Max = 100 });
 
-        // DELTA TIME - makes movement frame-independent
-        float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            // ===== CREATE 10 ENEMIES =====
+            Random rng = new Random();
+            for (int i = 0; i < 10; i++)
+            {
+                Entity enemy = world.CreateEntity();
+                enemy.Set(new Transform
+                {
+                    Position = new Vector2(rng.Next(100, 700), rng.Next(100, 500))
+                });
+                enemy.Set(new Velocity
+                {
+                    Value = new Vector2(rng.Next(-100, 100), rng.Next(-100, 100))
+                });
+                enemy.Set(new Health { Current = 50, Max = 50 });
+                // Notice: NO PlayerTag, so InputSystem won't control them
+            }
 
-        // Keyboard input
-        var keyboardState = Keyboard.GetState();
-        
-        if (keyboardState.IsKeyDown(Keys.W))
-            playerPosition.Y -= playerSpeed * deltaTime;
-        if (keyboardState.IsKeyDown(Keys.S))
-            playerPosition.Y += playerSpeed * deltaTime;
-        if (keyboardState.IsKeyDown(Keys.A))
-            playerPosition.X -= playerSpeed * deltaTime;
-        if (keyboardState.IsKeyDown(Keys.D))
-            playerPosition.X += playerSpeed * deltaTime;
+            base.Initialize();
+        }
 
-        base.Update(gameTime);
-    }
+        protected override void LoadContent()
+        {
+            _spriteBatch = new SpriteBatch(GraphicsDevice);
 
-    protected override void Draw(GameTime gameTime)
-    {
-        GraphicsDevice.Clear(Color.CornflowerBlue);
+            // Create render system (needs GraphicsDevice for texture)
+            renderSystem = new RenderSystem(world, GraphicsDevice);
+        }
 
-        _spriteBatch.Begin();
-        
-        // Draw player as a white square
-        DrawRectangle(playerPosition, 32, 32, Color.White);
-        
-        _spriteBatch.End();
+        protected override void Update(GameTime gameTime)
+        {
+            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+                Exit();
 
-        base.Draw(gameTime);
-    }
+            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-    // Helper method to draw colored rectangles
-    private void DrawRectangle(Vector2 position, int width, int height, Color color)
-    {
-        var rect = new Rectangle((int)position.X, (int)position.Y, width, height);
-        _spriteBatch.Draw(pixelTexture, rect, color);
+            // Update all systems
+            // Order matters! Input first, then movement
+            inputSystem.Update(deltaTime);
+            movementSystem.Update(deltaTime);
+            bounceSystem.Update(deltaTime); // Add this line
+            base.Update(gameTime);
+        }
+
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.CornflowerBlue);
+
+            _spriteBatch.Begin();
+
+            // RenderSystem draws all entities with Transform
+            renderSystem.Update(_spriteBatch);
+
+            _spriteBatch.End();
+
+            // Count entities
+            int entityCount = 0;
+            foreach (var entity in world.GetEntities().AsEnumerable())
+            {
+                entityCount++;
+            }
+            // Draw count in window title
+            Window.Title = $"Roguelite Game - Entities: {entityCount}";
+            base.Draw(gameTime);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // Clean up the ECS world
+                world.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }
