@@ -13,12 +13,12 @@ namespace RogueliteGame
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
-        // ECS World and Systems
         private World world;
         private MovementSystem movementSystem;
         private InputSystem inputSystem;
         private RenderSystem renderSystem;
         private BounceSystem bounceSystem;
+
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -28,36 +28,31 @@ namespace RogueliteGame
 
         protected override void Initialize()
         {
-            // Create the ECS world (holds all entities)
             world = new World();
 
-            // Create systems
             movementSystem = new MovementSystem(world);
             inputSystem = new InputSystem(world);
             bounceSystem = new BounceSystem(world);
 
-            // ===== CREATE PLAYER =====
             Entity player = world.CreateEntity();
             player.Set(new Transform { Position = new Vector2(400, 300) });
             player.Set(new Velocity { Value = Vector2.Zero });
-            player.Set(new PlayerTag()); // Mark it as the player
+            player.Set(new PlayerTag());
             player.Set(new Health { Current = 100, Max = 100 });
 
-            // ===== CREATE 10 ENEMIES =====
             Random rng = new Random();
             for (int i = 0; i < 10; i++)
             {
                 Entity enemy = world.CreateEntity();
-                enemy.Set(new Transform
-                {
-                    Position = new Vector2(rng.Next(100, 700), rng.Next(100, 500))
+                enemy.Set(new Transform 
+                { 
+                    Position = new Vector2(rng.Next(100, 700), rng.Next(100, 500)) 
                 });
-                enemy.Set(new Velocity
-                {
-                    Value = new Vector2(rng.Next(-100, 100), rng.Next(-100, 100))
+                enemy.Set(new Velocity 
+                { 
+                    Value = new Vector2(rng.Next(-100, 100), rng.Next(-100, 100)) 
                 });
                 enemy.Set(new Health { Current = 50, Max = 50 });
-                // Notice: NO PlayerTag, so InputSystem won't control them
             }
 
             base.Initialize();
@@ -66,8 +61,6 @@ namespace RogueliteGame
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            // Create render system (needs GraphicsDevice for texture)
             renderSystem = new RenderSystem(world, GraphicsDevice);
         }
 
@@ -78,11 +71,10 @@ namespace RogueliteGame
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            // Update all systems
-            // Order matters! Input first, then movement
             inputSystem.Update(deltaTime);
             movementSystem.Update(deltaTime);
-            bounceSystem.Update(deltaTime); // Add this line
+            bounceSystem.Update(deltaTime);
+
             base.Update(gameTime);
         }
 
@@ -91,20 +83,9 @@ namespace RogueliteGame
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
             _spriteBatch.Begin();
-
-            // RenderSystem draws all entities with Transform
             renderSystem.Update(_spriteBatch);
-
             _spriteBatch.End();
 
-            // Count entities
-            int entityCount = 0;
-            foreach (var entity in world.GetEntities().AsEnumerable())
-            {
-                entityCount++;
-            }
-            // Draw count in window title
-            Window.Title = $"Roguelite Game - Entities: {entityCount}";
             base.Draw(gameTime);
         }
 
@@ -112,7 +93,6 @@ namespace RogueliteGame
         {
             if (disposing)
             {
-                // Clean up the ECS world
                 world.Dispose();
             }
             base.Dispose(disposing);

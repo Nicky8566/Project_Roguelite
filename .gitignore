@@ -40,6 +40,10 @@ Content/obj/
 *.runtimeconfig.json
 *.deps.json
 
+# Logs
+build.log
+*.log
+
 # User-specific files
 *.rsuser
 *.suo
