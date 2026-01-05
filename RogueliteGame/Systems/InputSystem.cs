@@ -3,6 +3,7 @@ using DefaultEcs.System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using RogueliteGame.Components;
+using EcsWorld = DefaultEcs.World;
 
 namespace RogueliteGame.Systems
 {
@@ -10,7 +11,7 @@ namespace RogueliteGame.Systems
     {
         private const float PlayerSpeed = 200f;
 
-        public InputSystem(World world) 
+        public InputSystem(EcsWorld world) 
             : base(world.GetEntities()
                 .With<PlayerTag>()
                 .With<Velocity>()

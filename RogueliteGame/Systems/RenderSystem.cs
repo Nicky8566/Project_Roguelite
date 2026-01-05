@@ -3,6 +3,7 @@ using DefaultEcs.System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RogueliteGame.Components;
+using EcsWorld = DefaultEcs.World;
 
 namespace RogueliteGame.Systems
 {
@@ -10,7 +11,7 @@ namespace RogueliteGame.Systems
     {
         private Texture2D pixelTexture;
 
-        public RenderSystem(World world, GraphicsDevice graphicsDevice) 
+        public RenderSystem(EcsWorld world, GraphicsDevice graphicsDevice) 
             : base(world.GetEntities()
                 .With<Transform>()
                 .AsSet())
@@ -23,7 +24,7 @@ namespace RogueliteGame.Systems
         {
             ref Transform transform = ref entity.Get<Transform>();
             
-            Color color = entity.Has<PlayerTag>() ? Color.Green : Color.Red;
+            Color color = entity.Has<PlayerTag>() ? Color.Lime : Color.Red;
             
             Rectangle rect = new Rectangle(
                 (int)transform.Position.X, 

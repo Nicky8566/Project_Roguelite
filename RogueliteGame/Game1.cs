@@ -4,7 +4,9 @@ using Microsoft.Xna.Framework.Input;
 using DefaultEcs;
 using RogueliteGame.Components;
 using RogueliteGame.Systems;
+using RogueliteGame.World;
 using System;
+using EcsWorld = DefaultEcs.World;
 
 namespace RogueliteGame
 {
@@ -13,47 +15,68 @@ namespace RogueliteGame
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
-        private World world;
+        private EcsWorld world;
         private MovementSystem movementSystem;
         private InputSystem inputSystem;
         private RenderSystem renderSystem;
-        private BounceSystem bounceSystem;
+
+        // Week 3: Dungeon
+        private Dungeon dungeon;
+        private DungeonRenderSystem dungeonRenderSystem;
+
+        // Camera
+        private Vector2 cameraPosition;
+        private Matrix cameraTransform;
 
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
+            
+            // Normal laptop screen size
+            _graphics.PreferredBackBufferWidth = 1280;
+            _graphics.PreferredBackBufferHeight = 720;
         }
 
         protected override void Initialize()
         {
-            world = new World();
+            // Generate dungeon
+            DungeonGenerator generator = new DungeonGenerator(seed: 12345);
+            dungeon = generator.Generate(50, 50);
+            
+            Console.WriteLine("Dungeon generated!");
 
+            // Create ECS world
+            world = new EcsWorld();
+
+            // Create systems
             movementSystem = new MovementSystem(world);
             inputSystem = new InputSystem(world);
-            bounceSystem = new BounceSystem(world);
 
+            // Create player at a random floor position
+            Random rng = new Random();
             Entity player = world.CreateEntity();
-            player.Set(new Transform { Position = new Vector2(400, 300) });
+            player.Set(new Transform { Position = dungeon.GetRandomFloorPosition(rng) });
             player.Set(new Velocity { Value = Vector2.Zero });
             player.Set(new PlayerTag());
             player.Set(new Health { Current = 100, Max = 100 });
 
-            Random rng = new Random();
+            Console.WriteLine($"Player spawned at: {player.Get<Transform>().Position}");
+
+            // Create 10 enemies at random floor positions
             for (int i = 0; i < 10; i++)
             {
                 Entity enemy = world.CreateEntity();
-                enemy.Set(new Transform 
-                { 
-                    Position = new Vector2(rng.Next(100, 700), rng.Next(100, 500)) 
-                });
+                enemy.Set(new Transform { Position = dungeon.GetRandomFloorPosition(rng) });
                 enemy.Set(new Velocity 
                 { 
-                    Value = new Vector2(rng.Next(-100, 100), rng.Next(-100, 100)) 
+                    Value = new Vector2(rng.Next(-50, 50), rng.Next(-50, 50)) 
                 });
                 enemy.Set(new Health { Current = 50, Max = 50 });
             }
+
+            Console.WriteLine("10 enemies spawned!");
 
             base.Initialize();
         }
@@ -61,7 +84,9 @@ namespace RogueliteGame
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
+            
             renderSystem = new RenderSystem(world, GraphicsDevice);
+            dungeonRenderSystem = new DungeonRenderSystem(dungeon, GraphicsDevice);
         }
 
         protected override void Update(GameTime gameTime)
@@ -71,19 +96,100 @@ namespace RogueliteGame
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+            // Update input
             inputSystem.Update(deltaTime);
-            movementSystem.Update(deltaTime);
-            bounceSystem.Update(deltaTime);
+            
+            // Movement with PROPER collision detection for ALL entities
+            foreach (var entity in world.GetEntities().With<Transform>().With<Velocity>().AsEnumerable())
+            {
+                ref Transform transform = ref entity.Get<Transform>();
+                ref Velocity velocity = ref entity.Get<Velocity>();
+                
+                Vector2 newPosition = transform.Position + velocity.Value * deltaTime;
+                
+                // Check if new position is valid (all corners of the 32x32 entity)
+                bool canMove = IsPositionWalkable(newPosition);
+                
+                if (canMove)
+                {
+                    transform.Position = newPosition;
+                }
+                else
+                {
+                    // Hit a wall - bounce enemies, stop player
+                    if (!entity.Has<PlayerTag>())
+                    {
+                        // Enemy: reverse direction (bounce)
+                        velocity.Value *= -1;
+                    }
+                    else
+                    {
+                        // Player: stop moving
+                        velocity.Value = Vector2.Zero;
+                    }
+                }
+            }
+
+            // Update camera to follow player
+            UpdateCamera();
 
             base.Update(gameTime);
         }
 
+        private bool IsPositionWalkable(Vector2 position)
+        {
+            const int entitySize = 32;
+            const int margin = 2; // Small margin to prevent getting stuck in corners
+
+            // Check all four corners of the entity
+            bool topLeft = dungeon.IsWalkable(new Vector2(position.X + margin, position.Y + margin));
+            bool topRight = dungeon.IsWalkable(new Vector2(position.X + entitySize - margin, position.Y + margin));
+            bool bottomLeft = dungeon.IsWalkable(new Vector2(position.X + margin, position.Y + entitySize - margin));
+            bool bottomRight = dungeon.IsWalkable(new Vector2(position.X + entitySize - margin, position.Y + entitySize - margin));
+
+            return topLeft && topRight && bottomLeft && bottomRight;
+        }
+
+        private void UpdateCamera()
+        {
+            // Find player position
+            foreach (var entity in world.GetEntities().With<PlayerTag>().With<Transform>().AsEnumerable())
+            {
+                ref Transform transform = ref entity.Get<Transform>();
+                
+                // Center camera on player
+                cameraPosition.X = transform.Position.X + 16; // +16 to center on 32x32 entity
+                cameraPosition.Y = transform.Position.Y + 16;
+                
+                // Create camera transform matrix
+                cameraTransform = Matrix.CreateTranslation(
+                    -cameraPosition.X + _graphics.PreferredBackBufferWidth / 2,
+                    -cameraPosition.Y + _graphics.PreferredBackBufferHeight / 2,
+                    0
+                );
+                
+                break; // Only one player
+            }
+        }
+
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            GraphicsDevice.Clear(Color.Black);
 
-            _spriteBatch.Begin();
+            // Draw with camera transform
+            _spriteBatch.Begin(transformMatrix: cameraTransform);
+            
+            // Draw dungeon first (background)
+            dungeonRenderSystem.Draw(_spriteBatch);
+            
+            // Draw entities on top
             renderSystem.Update(_spriteBatch);
+            
+            _spriteBatch.End();
+
+            // Draw UI without camera (screen-space)
+            _spriteBatch.Begin();
+            // Add UI here later (health bars, score, etc.)
             _spriteBatch.End();
 
             base.Draw(gameTime);

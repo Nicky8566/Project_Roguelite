@@ -1,12 +1,13 @@
 using DefaultEcs;
 using DefaultEcs.System;
 using RogueliteGame.Components;
+using EcsWorld = DefaultEcs.World;
 
 namespace RogueliteGame.Systems
 {
     public class MovementSystem : AEntitySetSystem<float>
     {
-        public MovementSystem(World world) 
+        public MovementSystem(EcsWorld world) 
             : base(world.GetEntities()
                 .With<Transform>()
                 .With<Velocity>()

@@ -1,6 +1,7 @@
 using DefaultEcs;
 using DefaultEcs.System;
 using RogueliteGame.Components;
+using EcsWorld = DefaultEcs.World;
 
 namespace RogueliteGame.Systems
 {
@@ -10,7 +11,7 @@ namespace RogueliteGame.Systems
         private const int ScreenHeight = 600;
         private const int EntitySize = 32;
 
-        public BounceSystem(World world) 
+        public BounceSystem(EcsWorld world) 
             : base(world.GetEntities()
                 .With<Transform>()
                 .With<Velocity>()
