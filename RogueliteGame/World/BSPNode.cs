@@ -6,6 +6,7 @@ namespace RogueliteGame.World
     public class BSPNode
     {
         public Rectangle Bounds { get; set; }
+        // Each BSPNode says: “I own this rectangle of space.”
         public BSPNode Left { get; set; }
         public BSPNode Right { get; set; }
         public Rectangle? Room { get; set; }
@@ -15,9 +16,11 @@ namespace RogueliteGame.World
             Bounds = bounds;
         }
 
+        
         public void Split(Random rng, int minSize)
         {
-            // Stop if too small to split
+            // minsize is liek saying a room must be at least this big, so splitting equtes to creating two rooms of at least this size.
+            // Stop if too small to split partition (is a rectangle of space created by BSP splitting).
             if (Bounds.Width < minSize * 2 || Bounds.Height < minSize * 2)
                 return;
 
@@ -31,7 +34,7 @@ namespace RogueliteGame.World
             int splitPosition;
             if (splitHorizontally)
             {
-                // Split top/bottom
+                // Split top/bottom (top and bottom rooms as we cut horizontally)
                 splitPosition = rng.Next(minSize, Bounds.Height - minSize);
                 Left = new BSPNode(new Rectangle(
                     Bounds.X, Bounds.Y,
@@ -44,7 +47,7 @@ namespace RogueliteGame.World
             }
             else
             {
-                // Split left/right
+                // Split left/right (as we cut vertically)
                 splitPosition = rng.Next(minSize, Bounds.Width - minSize);
                 Left = new BSPNode(new Rectangle(
                     Bounds.X, Bounds.Y,
@@ -56,8 +59,8 @@ namespace RogueliteGame.World
                 ));
             }
 
-            // Recursively split children
-            Left.Split(rng, minSize);
+            // Recursively split children 
+            Left.Split(rng, minSize); 
             Right.Split(rng, minSize);
         }
 

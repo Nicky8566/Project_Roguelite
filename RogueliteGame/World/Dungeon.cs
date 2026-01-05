@@ -4,11 +4,13 @@ namespace RogueliteGame.World
 {
     public class Dungeon
     {
+        // This is the final result of generation. A 2D array of tiles.
         private TileType[,] tiles;
         public const int TileSize = 32;
         public int Width { get; private set; }
         public int Height { get; private set; }
 
+        // instialise all tiles as walls
         public Dungeon(int width, int height)
         {
             Width = width;
@@ -41,6 +43,7 @@ namespace RogueliteGame.World
             }
         }
 
+        // Check if a position in world coordinates is walkable
         public bool IsWalkable(Vector2 position)
         {
             int tileX = (int)(position.X / TileSize);
