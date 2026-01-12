@@ -50,3 +50,5 @@ build.log
 *.user
 *.userosscache
 *.sln.docstates
+# Text files
+*.txt
