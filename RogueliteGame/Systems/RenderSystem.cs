@@ -11,7 +11,7 @@ namespace RogueliteGame.Systems
     {
         private Texture2D pixelTexture;
 
-        public RenderSystem(EcsWorld world, GraphicsDevice graphicsDevice) 
+        public RenderSystem(EcsWorld world, GraphicsDevice graphicsDevice)
             : base(world.GetEntities()
                 .With<Transform>()
                 .AsSet())
@@ -23,15 +23,25 @@ namespace RogueliteGame.Systems
         protected override void Update(SpriteBatch spriteBatch, in Entity entity)
         {
             ref Transform transform = ref entity.Get<Transform>();
-            
-            Color color = entity.Has<PlayerTag>() ? Color.Lime : Color.Red;
-            
+
+            // Choose color based on entity type
+            Color color;
+            if (entity.Has<PlayerTag>())
+                color = Color.Lime;          // Player = bright green
+            else if (entity.Has<Projectile>())
+                color = Color.Yellow;        // Bullets = yellow
+            else
+                color = Color.Red;           // Enemies = red
+
+            // Bullets are smaller (8x8 instead of 32x32)
+            int size = entity.Has<Projectile>() ? 8 : 32;
+
             Rectangle rect = new Rectangle(
-                (int)transform.Position.X, 
-                (int)transform.Position.Y, 
-                32, 32
+                (int)transform.Position.X,
+                (int)transform.Position.Y,
+                size, size
             );
-            
+
             spriteBatch.Draw(pixelTexture, rect, color);
         }
     }
