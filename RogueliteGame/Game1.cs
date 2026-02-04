@@ -61,7 +61,8 @@ namespace RogueliteGame
 
             // Create systems
             movementSystem = new MovementSystem(world);
-            inputSystem = new InputSystem(world);
+            // NEW - pass GraphicsDevice
+            inputSystem = new InputSystem(world, GraphicsDevice);
             projectileSystem = new ProjectileSystem(world); 
             Console.WriteLine("\n=== SPAWNING PLAYER ===");
 
@@ -187,6 +188,9 @@ namespace RogueliteGame
 
             // Update camera to follow player
             UpdateCamera();
+             
+            // NEW - Tell InputSystem about the camera position
+            inputSystem.SetCameraTransform(cameraTransform);
 
             base.Update(gameTime);
         }
