@@ -22,6 +22,7 @@ namespace RogueliteGame
         private RenderSystem renderSystem;
         // Week 4: Shooting
         private ProjectileSystem projectileSystem;
+        private DamageSystem damageSystem; 
 
         // Week 3: Dungeon
         private Dungeon dungeon;
@@ -64,6 +65,7 @@ namespace RogueliteGame
             // NEW - pass GraphicsDevice
             inputSystem = new InputSystem(world, GraphicsDevice);
             projectileSystem = new ProjectileSystem(world); 
+            damageSystem = new DamageSystem(world); 
             Console.WriteLine("\n=== SPAWNING PLAYER ===");
 
             // Create player at a random floor position
@@ -154,6 +156,9 @@ namespace RogueliteGame
             
             // Update projectiles (lifetime, despawn)
             projectileSystem.Update(deltaTime); 
+
+            // Check bullet-enemy collisions
+            damageSystem.Update(deltaTime); 
 
             // Movement with PROPER collision detection for ALL entities
             foreach (var entity in world.GetEntities().With<Transform>().With<Velocity>().AsEnumerable())
