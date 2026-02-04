@@ -1,12 +1,15 @@
 using DefaultEcs;
 using DefaultEcs.System;
 using RogueliteGame.Components;
+using System.Collections.Generic;
 using EcsWorld = DefaultEcs.World;
 
 namespace RogueliteGame.Systems
 {
     public class ProjectileSystem : AEntitySetSystem<float>
     {
+        private List<Entity> entitiesToDestroy = new List<Entity>();
+
         public ProjectileSystem(EcsWorld world) 
             : base(world.GetEntities()
                 .With<Projectile>()
@@ -21,11 +24,26 @@ namespace RogueliteGame.Systems
             // Decrease lifetime
             projectile.Lifetime -= deltaTime;
             
-            // Destroy bullet if lifetime expired
+            // Mark for destruction if lifetime expired
             if (projectile.Lifetime <= 0f)
             {
-                entity.Dispose(); // Remove from world
+                entitiesToDestroy.Add(entity);
             }
+        }
+
+        protected override void PostUpdate(float state)
+        {
+            // Clean up marked entities AFTER iteration
+            foreach (var entity in entitiesToDestroy)
+            {
+                if (entity.IsAlive)
+                {
+                    entity.Dispose();
+                }
+            }
+            entitiesToDestroy.Clear();
+            
+            base.PostUpdate(state);
         }
     }
 }

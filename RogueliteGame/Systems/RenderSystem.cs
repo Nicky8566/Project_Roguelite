@@ -22,6 +22,10 @@ namespace RogueliteGame.Systems
 
         protected override void Update(SpriteBatch spriteBatch, in Entity entity)
         {
+
+            if (!entity.IsAlive)
+               return;
+
             ref Transform transform = ref entity.Get<Transform>();
 
             // Choose color based on entity type
