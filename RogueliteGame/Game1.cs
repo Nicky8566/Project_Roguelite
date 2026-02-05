@@ -22,7 +22,8 @@ namespace RogueliteGame
         private RenderSystem renderSystem;
         // Week 4: Shooting
         private ProjectileSystem projectileSystem;
-        private DamageSystem damageSystem; 
+        private DamageSystem damageSystem;
+        private AISystem aiSystem;
 
         // Week 3: Dungeon
         private Dungeon dungeon;
@@ -64,8 +65,9 @@ namespace RogueliteGame
             movementSystem = new MovementSystem(world);
             // NEW - pass GraphicsDevice
             inputSystem = new InputSystem(world, GraphicsDevice);
-            projectileSystem = new ProjectileSystem(world); 
-            damageSystem = new DamageSystem(world); 
+            projectileSystem = new ProjectileSystem(world);
+            damageSystem = new DamageSystem(world);
+            aiSystem = new AISystem(world);
             Console.WriteLine("\n=== SPAWNING PLAYER ===");
 
             // Create player at a random floor position
@@ -105,11 +107,17 @@ namespace RogueliteGame
                 Entity enemy = world.CreateEntity();
                 Vector2 enemyPos = dungeon.GetRandomFloorPosition(rng);
                 enemy.Set(new Transform { Position = enemyPos });
-                enemy.Set(new Velocity
-                {
-                    Value = new Vector2(rng.Next(-50, 50), rng.Next(-50, 50))
-                });
+                enemy.Set(new Velocity { Value = Vector2.Zero }); // AI controls velocity
                 enemy.Set(new Health { Current = 50, Max = 50 });
+                enemy.Set(new AIState
+                {
+                    State = EnemyState.Wander,
+                    AttackCooldown = 0f,
+                    WanderTarget = enemyPos,
+                    WanderTimer = 2f
+                });
+
+                Console.WriteLine($"  → AIState set for Enemy {i + 1}");
 
                 // PRINTF: Check enemy spawn position
                 int enemyTileX = (int)(enemyPos.X / Dungeon.TileSize);
@@ -153,22 +161,35 @@ namespace RogueliteGame
 
             // Update input
             inputSystem.Update(deltaTime);
-            
+
+
+            // Update AI (enemies chase/shoot)
+            aiSystem.Update(deltaTime);
+
             // Update projectiles (lifetime, despawn)
-            projectileSystem.Update(deltaTime); 
+            projectileSystem.Update(deltaTime);
 
             // Check bullet-enemy collisions
-            damageSystem.Update(deltaTime); 
+            damageSystem.Update(deltaTime);
 
             // Movement with PROPER collision detection for ALL entities
+            // Movement with collision detection for ALL entities
             foreach (var entity in world.GetEntities().With<Transform>().With<Velocity>().AsEnumerable())
             {
                 ref Transform transform = ref entity.Get<Transform>();
                 ref Velocity velocity = ref entity.Get<Velocity>();
 
+                // Skip projectiles (they don't collide with walls)
+                if (entity.Has<Projectile>())
+                {
+                    transform.Position += velocity.Value * deltaTime;
+                    continue;
+                }
+
+                // Calculate new position
                 Vector2 newPosition = transform.Position + velocity.Value * deltaTime;
 
-                // Check if new position is valid (all corners of the 32x32 entity)
+                // Check if new position is walkable
                 bool canMove = IsPositionWalkable(newPosition);
 
                 if (canMove)
@@ -193,7 +214,7 @@ namespace RogueliteGame
 
             // Update camera to follow player
             UpdateCamera();
-             
+
             // NEW - Tell InputSystem about the camera position
             inputSystem.SetCameraTransform(cameraTransform);
 

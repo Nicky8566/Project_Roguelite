@@ -38,7 +38,18 @@ namespace RogueliteGame.Systems
                 .Without<PlayerTag>()
                 .AsEnumerable();
 
-            // Check each bullet against each enemy
+            // Get player
+            Entity? playerEntity = null;
+            Transform playerTransform = default;
+
+            foreach (var p in world.GetEntities().With<PlayerTag>().With<Health>().With<Transform>().AsEnumerable())
+            {
+                playerEntity = p;
+                playerTransform = p.Get<Transform>();
+                break;
+            }
+
+            // Check each bullet
             foreach (var bullet in projectiles)
             {
                 if (!bullet.IsAlive) continue;
@@ -52,38 +63,64 @@ namespace RogueliteGame.Systems
                     8, 8  // Bullet is 8x8
                 );
 
-                foreach (var enemy in enemies)
+                // PLAYER BULLETS (OwnerID = 0) hit ENEMIES
+                if (projectile.OwnerID == 0)
                 {
-                    if (!enemy.IsAlive) continue;
-
-                    ref Transform enemyTransform = ref enemy.Get<Transform>();
-                    ref Health enemyHealth = ref enemy.Get<Health>();
-
-                    Rectangle enemyRect = new Rectangle(
-                        (int)enemyTransform.Position.X,
-                        (int)enemyTransform.Position.Y,
-                        32, 32  // Enemy is 32x32
-                    );
-
-                    // Check collision
-                    if (bulletRect.Intersects(enemyRect))
+                    foreach (var enemy in enemies)
                     {
-                        // Deal damage
-                        enemyHealth.Current -= projectile.Damage;
+                        if (!enemy.IsAlive) continue;
 
-                        System.Console.WriteLine($"HIT! Enemy health: {enemyHealth.Current}/{enemyHealth.Max}");
+                        ref Transform enemyTransform = ref enemy.Get<Transform>();
+                        ref Health enemyHealth = ref enemy.Get<Health>();
 
-                        // Mark bullet for destruction
-                        entitiesToDestroy.Add(bullet);
+                        Rectangle enemyRect = new Rectangle(
+                            (int)enemyTransform.Position.X,
+                            (int)enemyTransform.Position.Y,
+                            32, 32
+                        );
 
-                        // If enemy is dead, mark it too
-                        if (enemyHealth.Current <= 0)
+                        if (bulletRect.Intersects(enemyRect))
                         {
-                            System.Console.WriteLine("Enemy destroyed!");
-                            entitiesToDestroy.Add(enemy);
-                        }
+                            enemyHealth.Current -= projectile.Damage;
+                            System.Console.WriteLine($"Player bullet HIT enemy! Health: {enemyHealth.Current}/{enemyHealth.Max}");
 
-                        break; // Bullet can only hit one enemy
+                            entitiesToDestroy.Add(bullet);
+
+                            if (enemyHealth.Current <= 0)
+                            {
+                                System.Console.WriteLine("Enemy destroyed!");
+                                entitiesToDestroy.Add(enemy);
+                            }
+
+                            break;
+                        }
+                    }
+                }
+                // ENEMY BULLETS (OwnerID = 1) hit PLAYER
+                else if (projectile.OwnerID == 1)
+                {
+                    if (playerEntity.HasValue && playerEntity.Value.IsAlive)
+                    {
+                        Rectangle playerRect = new Rectangle(
+                            (int)playerTransform.Position.X,
+                            (int)playerTransform.Position.Y,
+                            32, 32
+                        );
+
+                        if (bulletRect.Intersects(playerRect))
+                        {
+                            ref Health playerHealth = ref playerEntity.Value.Get<Health>();
+                            playerHealth.Current -= projectile.Damage;
+
+                            System.Console.WriteLine($"Enemy bullet HIT player! Health: {playerHealth.Current}/{playerHealth.Max}");
+
+                            entitiesToDestroy.Add(bullet);
+
+                            if (playerHealth.Current <= 0)
+                            {
+                                System.Console.WriteLine("=== PLAYER DEAD! GAME OVER! ===");
+                            }
+                        }
                     }
                 }
             }
