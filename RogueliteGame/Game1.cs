@@ -179,10 +179,20 @@ namespace RogueliteGame
                 ref Transform transform = ref entity.Get<Transform>();
                 ref Velocity velocity = ref entity.Get<Velocity>();
 
-                // Skip projectiles (they don't collide with walls)
+                // Projectiles check collision but don't bounce
                 if (entity.Has<Projectile>())
                 {
-                    transform.Position += velocity.Value * deltaTime;
+                    Vector2 newPos = transform.Position + velocity.Value * deltaTime;
+
+                    // If bullet hits wall, mark it for destruction
+                    if (!dungeon.IsWalkable(newPos) || !dungeon.IsWalkable(newPos + new Vector2(7, 7)))
+                    {
+                        entity.Dispose();  // Destroy bullet
+                    }
+                    else
+                    {
+                        transform.Position = newPos;
+                    }
                     continue;
                 }
 
