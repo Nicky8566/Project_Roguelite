@@ -24,6 +24,7 @@ namespace RogueliteGame
         private ProjectileSystem projectileSystem;
         private DamageSystem damageSystem;
         private AISystem aiSystem;
+        private UISystem uiSystem; 
 
         // Week 3: Dungeon
         private Dungeon dungeon;
@@ -150,6 +151,7 @@ namespace RogueliteGame
 
             renderSystem = new RenderSystem(world, GraphicsDevice);
             dungeonRenderSystem = new DungeonRenderSystem(dungeon, GraphicsDevice);
+            uiSystem = new UISystem(world, GraphicsDevice);
         }
 
         protected override void Update(GameTime gameTime)
@@ -285,6 +287,7 @@ namespace RogueliteGame
             // Draw UI without camera (screen-space)
             _spriteBatch.Begin();
             // Add UI here later (health bars, score, etc.)
+            uiSystem.Draw(_spriteBatch);
             _spriteBatch.End();
 
             base.Draw(gameTime);
