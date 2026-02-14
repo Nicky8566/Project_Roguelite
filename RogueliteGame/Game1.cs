@@ -12,21 +12,22 @@ namespace RogueliteGame
 {
     public class Game1 : Game
     {
-        private const int TEST_SEED = 23451;
+        private const int GAME_SEED = 12345;
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
+        private SpriteFont _font;
 
         private EcsWorld world;
         private MovementSystem movementSystem;
         private InputSystem inputSystem;
         private RenderSystem renderSystem;
-        // Week 4: Shooting
         private ProjectileSystem projectileSystem;
         private DamageSystem damageSystem;
         private AISystem aiSystem;
-        private UISystem uiSystem; 
+        private UISystem uiSystem;
+        private MenuSystem menuSystem;
+        private WaveSystem waveSystem;
 
-        // Week 3: Dungeon
         private Dungeon dungeon;
         private DungeonRenderSystem dungeonRenderSystem;
 
@@ -34,45 +35,63 @@ namespace RogueliteGame
         private Vector2 cameraPosition;
         private Matrix cameraTransform;
 
+        // Game state
+        private GameState currentState = GameState.MainMenu;
+        private WaveComponent waveComponent;
+
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
 
-            // Normal laptop screen size
             _graphics.PreferredBackBufferWidth = 1280;
             _graphics.PreferredBackBufferHeight = 720;
         }
 
         protected override void Initialize()
         {
-            // Redirect console output to a file
-            var logFile = System.IO.File.CreateText("spawn_debug.txt");
-            logFile.AutoFlush = true;
-            System.Console.SetOut(logFile);
+            base.Initialize();
+        }
 
+        protected override void LoadContent()
+        {
+            _spriteBatch = new SpriteBatch(GraphicsDevice);
+            
+            // Load font
+            _font = Content.Load<SpriteFont>("Font");
+            
+            menuSystem = new MenuSystem(GraphicsDevice, _font);
+        }
+
+        private void StartGame()
+        {
+            Console.WriteLine("=== STARTING NEW GAME ===");
+            
             // Generate dungeon
-            DungeonGenerator generator = new DungeonGenerator(seed: 12345);
+            DungeonGenerator generator = new DungeonGenerator(seed: GAME_SEED);
             dungeon = generator.Generate(50, 50);
 
-            Console.WriteLine("=== DUNGEON GENERATION COMPLETE ===");
-            Console.WriteLine($"Seed: {TEST_SEED}");
-
-            // Create ECS world
+            // Create/reset ECS world
+            if (world != null)
+                world.Dispose();
+            
             world = new EcsWorld();
 
             // Create systems
             movementSystem = new MovementSystem(world);
-            // NEW - pass GraphicsDevice
             inputSystem = new InputSystem(world, GraphicsDevice);
             projectileSystem = new ProjectileSystem(world);
             damageSystem = new DamageSystem(world);
             aiSystem = new AISystem(world);
-            Console.WriteLine("\n=== SPAWNING PLAYER ===");
+            waveSystem = new WaveSystem(world, dungeon, GAME_SEED + 100);
+            
+            renderSystem = new RenderSystem(world, GraphicsDevice);
+            dungeonRenderSystem = new DungeonRenderSystem(dungeon, GraphicsDevice);
+            uiSystem = new UISystem(world, GraphicsDevice, _font);
 
-            // Create player at a random floor position
-            Random rng = new Random(TEST_SEED);
+            // Create player
+            Random rng = new Random(GAME_SEED);
             Entity player = world.CreateEntity();
             Vector2 playerPos = dungeon.GetRandomFloorPosition(rng);
             player.Set(new Transform { Position = playerPos });
@@ -80,116 +99,84 @@ namespace RogueliteGame
             player.Set(new PlayerTag());
             player.Set(new Health { Current = 100, Max = 100 });
 
-            // PRINTF: Check player spawn position
-            int playerTileX = (int)(playerPos.X / Dungeon.TileSize);
-            int playerTileY = (int)(playerPos.Y / Dungeon.TileSize);
-            TileType playerTile = dungeon.GetTile(playerTileX, playerTileY);
-            bool playerWalkable = IsPositionWalkable(playerPos);
+            Console.WriteLine($"Player spawned at ({playerPos.X:F0}, {playerPos.Y:F0})");
 
-            Console.WriteLine($"  Position: ({playerPos.X:F0}, {playerPos.Y:F0})");
-            Console.WriteLine($"  Tile: ({playerTileX}, {playerTileY})");
-            Console.WriteLine($"  Tile Type: {playerTile}");
-            Console.WriteLine($"  Can spawn safely? {playerWalkable}");
-
-            if (!playerWalkable)
+            // Initialize wave system
+            waveComponent = new WaveComponent
             {
-                Console.WriteLine("  ❌ PROBLEM: Player spawned in wall!");
-            }
-            else
-            {
-                Console.WriteLine("  ✓ Player spawn OK");
-            }
+                CurrentWave = 0,
+                EnemiesRemaining = 0,
+                WaveDelay = 1f,
+                TotalKills = 0
+            };
 
-            Console.WriteLine("\n=== SPAWNING ENEMIES ===");
-
-            // Create 10 enemies at random floor positions
-            for (int i = 0; i < 10; i++)
-            {
-                Entity enemy = world.CreateEntity();
-                Vector2 enemyPos = dungeon.GetRandomFloorPosition(rng);
-                enemy.Set(new Transform { Position = enemyPos });
-                enemy.Set(new Velocity { Value = Vector2.Zero }); // AI controls velocity
-                enemy.Set(new Health { Current = 50, Max = 50 });
-                enemy.Set(new AIState
-                {
-                    State = EnemyState.Wander,
-                    AttackCooldown = 0f,
-                    WanderTarget = enemyPos,
-                    WanderTimer = 2f
-                });
-
-                Console.WriteLine($"  → AIState set for Enemy {i + 1}");
-
-                // PRINTF: Check enemy spawn position
-                int enemyTileX = (int)(enemyPos.X / Dungeon.TileSize);
-                int enemyTileY = (int)(enemyPos.Y / Dungeon.TileSize);
-                TileType enemyTile = dungeon.GetTile(enemyTileX, enemyTileY);
-                bool enemyWalkable = IsPositionWalkable(enemyPos);
-
-                Console.Write($"  Enemy {i + 1}: ({enemyPos.X:F0}, {enemyPos.Y:F0}) -> ");
-
-                if (!enemyWalkable)
-                {
-                    Console.WriteLine($"❌ SPAWNED IN WALL!");
-                }
-                else
-                {
-                    Console.WriteLine($"✓ OK");
-                }
-            }
-
-            Console.WriteLine("\n=== SPAWN COMPLETE ===\n");
-
-            Console.WriteLine("Press ENTER to start the game...");
-            Console.ReadLine();  // ← ADD THIS - waits for you to press Enter
-
-            base.Initialize();
-        }
-        protected override void LoadContent()
-        {
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            renderSystem = new RenderSystem(world, GraphicsDevice);
-            dungeonRenderSystem = new DungeonRenderSystem(dungeon, GraphicsDevice);
-            uiSystem = new UISystem(world, GraphicsDevice);
+            currentState = GameState.Playing;
         }
 
         protected override void Update(GameTime gameTime)
         {
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
-                Exit();
-
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            // Update input
+            switch (currentState)
+            {
+                case GameState.MainMenu:
+                    break;
+
+                case GameState.Playing:
+                    UpdatePlaying(deltaTime);
+                    break;
+
+                case GameState.GameOver:
+                    break;
+            }
+
+            base.Update(gameTime);
+        }
+
+        private void UpdatePlaying(float deltaTime)
+        {
+            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+            {
+                currentState = GameState.MainMenu;
+                return;
+            }
+
             inputSystem.Update(deltaTime);
-
-
-            // Update AI (enemies chase/shoot)
             aiSystem.Update(deltaTime);
-
-            // Update projectiles (lifetime, despawn)
             projectileSystem.Update(deltaTime);
 
-            // Check bullet-enemy collisions
+            // Track kills
+            int enemiesBefore = 0;
+            foreach (var _ in world.GetEntities().With<AIState>().AsEnumerable())
+                enemiesBefore++;
+
             damageSystem.Update(deltaTime);
 
-            // Movement with PROPER collision detection for ALL entities
-            // Movement with collision detection for ALL entities
+            int enemiesAfter = 0;
+            foreach (var _ in world.GetEntities().With<AIState>().AsEnumerable())
+                enemiesAfter++;
+
+            int killsThisFrame = enemiesBefore - enemiesAfter;
+            if (killsThisFrame > 0)
+            {
+                waveComponent.TotalKills += killsThisFrame;
+            }
+
+            waveSystem.Update(deltaTime, ref waveComponent);
+
+            // Movement with collision detection
             foreach (var entity in world.GetEntities().With<Transform>().With<Velocity>().AsEnumerable())
             {
                 ref Transform transform = ref entity.Get<Transform>();
                 ref Velocity velocity = ref entity.Get<Velocity>();
 
-                // Projectiles check collision but don't bounce
                 if (entity.Has<Projectile>())
                 {
                     Vector2 newPos = transform.Position + velocity.Value * deltaTime;
 
-                    // If bullet hits wall, mark it for destruction
                     if (!dungeon.IsWalkable(newPos) || !dungeon.IsWalkable(newPos + new Vector2(7, 7)))
                     {
-                        entity.Dispose();  // Destroy bullet
+                        entity.Dispose();
                     }
                     else
                     {
@@ -198,10 +185,7 @@ namespace RogueliteGame
                     continue;
                 }
 
-                // Calculate new position
                 Vector2 newPosition = transform.Position + velocity.Value * deltaTime;
-
-                // Check if new position is walkable
                 bool canMove = IsPositionWalkable(newPosition);
 
                 if (canMove)
@@ -210,35 +194,37 @@ namespace RogueliteGame
                 }
                 else
                 {
-                    // Hit a wall - bounce enemies, stop player
                     if (!entity.Has<PlayerTag>())
                     {
-                        // Enemy: reverse direction (bounce)
                         velocity.Value *= -1;
                     }
                     else
                     {
-                        // Player: stop moving
                         velocity.Value = Vector2.Zero;
                     }
                 }
             }
 
-            // Update camera to follow player
+            // Check player death
+            foreach (var player in world.GetEntities().With<PlayerTag>().With<Health>().AsEnumerable())
+            {
+                ref Health health = ref player.Get<Health>();
+                if (health.Current <= 0)
+                {
+                    currentState = GameState.GameOver;
+                }
+                break;
+            }
+
             UpdateCamera();
-
-            // NEW - Tell InputSystem about the camera position
             inputSystem.SetCameraTransform(cameraTransform);
-
-            base.Update(gameTime);
         }
 
         private bool IsPositionWalkable(Vector2 position)
         {
             const int entitySize = 32;
-            const int margin = 2; // Small margin to prevent getting stuck in corners
+            const int margin = 2;
 
-            // Check all four corners of the entity
             bool topLeft = dungeon.IsWalkable(new Vector2(position.X + margin, position.Y + margin));
             bool topRight = dungeon.IsWalkable(new Vector2(position.X + entitySize - margin, position.Y + margin));
             bool bottomLeft = dungeon.IsWalkable(new Vector2(position.X + margin, position.Y + entitySize - margin));
@@ -249,23 +235,20 @@ namespace RogueliteGame
 
         private void UpdateCamera()
         {
-            // Find player position
             foreach (var entity in world.GetEntities().With<PlayerTag>().With<Transform>().AsEnumerable())
             {
                 ref Transform transform = ref entity.Get<Transform>();
 
-                // Center camera on player
-                cameraPosition.X = transform.Position.X + 16; // +16 to center on 32x32 entity
+                cameraPosition.X = transform.Position.X + 16;
                 cameraPosition.Y = transform.Position.Y + 16;
 
-                // Create camera transform matrix
                 cameraTransform = Matrix.CreateTranslation(
                     -cameraPosition.X + _graphics.PreferredBackBufferWidth / 2,
                     -cameraPosition.Y + _graphics.PreferredBackBufferHeight / 2,
                     0
                 );
 
-                break; // Only one player
+                break;
             }
         }
 
@@ -273,31 +256,84 @@ namespace RogueliteGame
         {
             GraphicsDevice.Clear(Color.Black);
 
-            // Draw with camera transform
-            _spriteBatch.Begin(transformMatrix: cameraTransform);
+            switch (currentState)
+            {
+                case GameState.MainMenu:
+                    DrawMainMenu();
+                    break;
 
-            // Draw dungeon first (background)
-            dungeonRenderSystem.Draw(_spriteBatch);
+                case GameState.Playing:
+                    DrawPlaying();
+                    break;
 
-            // Draw entities on top
-            renderSystem.Update(_spriteBatch);
-
-            _spriteBatch.End();
-
-            // Draw UI without camera (screen-space)
-            _spriteBatch.Begin();
-            // Add UI here later (health bars, score, etc.)
-            uiSystem.Draw(_spriteBatch);
-            _spriteBatch.End();
+                case GameState.GameOver:
+                    DrawGameOver();
+                    break;
+            }
 
             base.Draw(gameTime);
+        }
+
+        private void DrawMainMenu()
+        {
+            _spriteBatch.Begin();
+            
+            MenuAction action = menuSystem.DrawMainMenu(_spriteBatch);
+            
+            if (action == MenuAction.PlaySolo)
+            {
+                StartGame();
+            }
+            else if (action == MenuAction.Exit)
+            {
+                Exit();
+            }
+            
+            _spriteBatch.End();
+        }
+
+        private void DrawPlaying()
+        {
+            _spriteBatch.Begin(transformMatrix: cameraTransform);
+            dungeonRenderSystem.Draw(_spriteBatch);
+            renderSystem.Update(_spriteBatch);
+            _spriteBatch.End();
+
+            _spriteBatch.Begin();
+            uiSystem.Draw(_spriteBatch, waveComponent);
+            _spriteBatch.End();
+        }
+
+        private void DrawGameOver()
+        {
+            // Draw game world faded
+            _spriteBatch.Begin(transformMatrix: cameraTransform);
+            dungeonRenderSystem.Draw(_spriteBatch);
+            renderSystem.Update(_spriteBatch);
+            _spriteBatch.End();
+
+            // Draw death menu (with dark overlay)
+            _spriteBatch.Begin();
+            
+            MenuAction action = menuSystem.DrawDeathMenu(_spriteBatch);
+            
+            if (action == MenuAction.Respawn)
+            {
+                StartGame();
+            }
+            else if (action == MenuAction.ExitToMenu)
+            {
+                currentState = GameState.MainMenu;
+            }
+            
+            _spriteBatch.End();
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                world.Dispose();
+                world?.Dispose();
             }
             base.Dispose(disposing);
         }
