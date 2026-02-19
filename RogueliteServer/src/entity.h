@@ -12,23 +12,40 @@ typedef enum {
     ENTITY_TYPE_PROJECTILE
 } EntityType;
 
-// Single entity
+// AI states
+typedef enum {
+    AI_STATE_IDLE,
+    AI_STATE_WANDER,
+    AI_STATE_CHASE,
+    AI_STATE_ATTACK
+} AIStateType;
+
+// AI component
 typedef struct {
-    uint32_t id;           // Unique identifier
-    EntityType type;       // What kind of entity?
-    Vector2 position;      // Where is it?
-    Vector2 velocity;      // How fast/direction is it moving?
-    int health;            // HP
-    int max_health;        // Max HP
-    bool active;           // Is it alive?
+    AIStateType state;
+    float state_timer;
+    float attack_cooldown;
+    Vector2 wander_target;
+} AIComponent;
+
+// Single entity (UPDATED - added ai field)
+typedef struct {
+    uint32_t id;
+    EntityType type;
+    Vector2 position;
+    Vector2 velocity;
+    int health;
+    int max_health;
+    bool active;
+    AIComponent ai;          // ← NEW: AI data
 } Entity;
 
-// Entity manager (manages all entities)
+// Entity manager
 typedef struct {
-    Entity* entities;      // Dynamic array of entities
-    size_t count;          // How many entities exist
-    size_t capacity;       // Max capacity before resize
-    uint32_t next_id;      // ID for next entity
+    Entity* entities;
+    size_t count;
+    size_t capacity;
+    uint32_t next_id;
 } EntityManager;
 
 // Function declarations

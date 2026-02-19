@@ -62,6 +62,12 @@ Entity* entity_create(EntityManager* em, EntityType type, Vector2 position) {
     e->velocity = vector2_create(0.0f, 0.0f);
     e->active = true;
     
+    // Initialize AI component
+    e->ai.state = AI_STATE_IDLE;
+    e->ai.state_timer = 0.0f;
+    e->ai.attack_cooldown = 0.0f;
+    e->ai.wander_target = position;
+
     // Set health based on type
     if (type == ENTITY_TYPE_PLAYER) {
         e->health = 100;
