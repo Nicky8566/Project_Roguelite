@@ -1,9 +1,10 @@
 #include "game_loop.h"
+#include "network.h"
 #include "collision.h"
 #include "ai.h"
 #include <stdio.h>
 #include <time.h>
-#include <math.h>   
+#include <math.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -15,22 +16,26 @@
 
 #define TICK_RATE 60.0f
 #define TICK_TIME (1.0f / TICK_RATE)
+#define CLIENT_TIMEOUT 5.0f  // Disconnect after 5 seconds of no packets
 
-// Initialize game
-void game_init(GameState* game) {
-    printf("=== INITIALIZING GAME ===\n");
+void game_init(GameState* game, SOCKET sock) {
+    printf("=== INITIALIZING NETWORKED GAME ===\n");
     
     entity_manager_init(&game->entity_manager, 100);
     game->running = true;
     game->total_time = 0.0f;
     game->tick_count = 0;
+    game->socket = sock;
+    game->client_count = 0;
     
-    // Create player
-    Vector2 player_pos = vector2_create(400.0f, 300.0f);
-    entity_create(&game->entity_manager, ENTITY_TYPE_PLAYER, player_pos);
-    printf("Player created at (%.0f, %.0f)\n", player_pos.x, player_pos.y);
+    // Initialize clients
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        game->clients[i].connected = false;
+        game->clients[i].player_id = 0;
+        game->clients[i].last_packet_time = 0.0f;
+    }
     
-    // Create 3 enemies
+    // Spawn 3 AI enemies
     for (int i = 0; i < 3; i++) {
         float angle = (i / 3.0f) * 6.28f;
         float x = 400.0f + cosf(angle) * 200.0f;
@@ -40,67 +45,55 @@ void game_init(GameState* game) {
         entity_create(&game->entity_manager, ENTITY_TYPE_ENEMY, enemy_pos);
     }
     
-    printf("=== GAME INITIALIZED ===\n\n");
+    printf("=== GAME INITIALIZED ===\n");
+    printf("Waiting for clients to connect...\n\n");
 }
 
-// Run game loop
-void game_run(GameState* game, float duration_seconds) {
-    printf("=== STARTING GAME LOOP (%.1fs at %d Hz) ===\n\n", 
-           duration_seconds, (int)TICK_RATE);
+void game_run_networked(GameState* game) {
+    printf("=== STARTING NETWORKED GAME LOOP ===\n\n");
     
-    int total_ticks = (int)(duration_seconds * TICK_RATE);
-    
-    for (int tick = 0; tick < total_ticks && game->running; tick++) {
+    while (game->running) {
         game->tick_count++;
         game->total_time += TICK_TIME;
         
-        // Update AI
+        // 1. Receive inputs from clients
+        network_receive_packets(game);
+        
+        // 2. Check for client timeouts
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (game->clients[i].connected) {
+                float time_since_packet = game->total_time - game->clients[i].last_packet_time;
+                if (time_since_packet > CLIENT_TIMEOUT) {
+                    printf("Client %d timed out\n", i);
+                    entity_destroy(&game->entity_manager, game->clients[i].player_id);
+                    game->clients[i].connected = false;
+                    game->client_count--;
+                }
+            }
+        }
+        
+        // 3. Run game logic (same as Week 5)
         ai_update_all(&game->entity_manager, TICK_TIME);
-        
-        // Update movement
         entity_update_all(&game->entity_manager, TICK_TIME);
-        
-        // Check collisions
         collision_resolve_all(&game->entity_manager);
         
-        // Print state every 60 ticks (once per second)
-        if (tick % 60 == 0) {
-            printf("=== TICK %d (%.1fs) ===\n", game->tick_count, game->total_time);
+        // 4. Broadcast state to clients
+        network_broadcast_state(game);
+        
+        // 5. Print state every 60 ticks (1 second)
+        if (game->tick_count % 60 == 0) {
+            printf("=== TICK %d (%.1fs) - Clients: %d ===\n",
+                   game->tick_count, game->total_time, game->client_count);
             entity_print_all(&game->entity_manager);
         }
         
-        // Check win/lose conditions
-        bool player_alive = false;
-        bool enemies_alive = false;
-        
-        for (size_t i = 0; i < game->entity_manager.count; i++) {
-            Entity* e = &game->entity_manager.entities[i];
-            if (e->type == ENTITY_TYPE_PLAYER && e->active) player_alive = true;
-            if (e->type == ENTITY_TYPE_ENEMY && e->active) enemies_alive = true;
-        }
-        
-        if (!player_alive) {
-            printf("\n=== GAME OVER: Player Died ===\n");
-            game->running = false;
-            break;
-        }
-        
-        if (!enemies_alive) {
-            printf("\n=== VICTORY: All Enemies Defeated! ===\n");
-            game->running = false;
-            break;
-        }
-        
-        // Sleep to maintain 60 Hz (16.67ms per tick)
+        // 6. Sleep to maintain 60 Hz
         sleep_ms(16);
     }
     
     printf("\n=== GAME LOOP ENDED ===\n");
-    printf("Total ticks: %d\n", game->tick_count);
-    printf("Total time: %.2fs\n", game->total_time);
 }
 
-// Cleanup
 void game_cleanup(GameState* game) {
     entity_manager_free(&game->entity_manager);
     printf("=== GAME CLEANUP COMPLETE ===\n");

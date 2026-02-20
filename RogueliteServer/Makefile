@@ -1,38 +1,36 @@
-# Compiler and flags
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -O2
-LDFLAGS = -lm
+LDFLAGS_MATH = -lm
+LDFLAGS_WIN = -lws2_32
 
-# Directories
-SRC_DIR = src
-BUILD_DIR = build
+ifeq ($(OS),Windows_NT)
+    LDFLAGS = $(LDFLAGS_MATH) $(LDFLAGS_WIN)
+else
+    LDFLAGS = $(LDFLAGS_MATH)
+endif
 
-# Source files
-SOURCES = $(wildcard $(SRC_DIR)/*.c) # Find all .c files in the src directory
-OBJECTS = $(SOURCES:.c=.o) # Replace .c with .o for object files
-
-# Output
+SOURCES = $(wildcard src/*.c)
+OBJECTS = $(SOURCES:.c=.o)
 TARGET = server.exe
 
-# Default target
-all: $(TARGET) # Build the target executable
+all: $(TARGET)
 
-# Link
 $(TARGET): $(OBJECTS)
+	@echo "Linking $(TARGET)..."
 	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
-	@echo "Build complete: $(TARGET)"
+	@echo "Build complete!"
 
-# Compile
 %.o: %.c
+	@echo "Compiling $<..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean
 clean:
-	rm -f $(SRC_DIR)/*.o $(TARGET)
-	@echo "Cleaned build files"
+	@echo "Cleaning..."
+	rm -f $(OBJECTS) $(TARGET) src/*.o
+	@echo "Clean complete!"
 
-# Run
 run: $(TARGET)
+	@echo "Running $(TARGET)..."
 	./$(TARGET)
 
 .PHONY: all clean run

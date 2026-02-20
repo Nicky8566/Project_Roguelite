@@ -2,29 +2,37 @@
 #include <stdlib.h>
 #include <time.h>
 #include "game_loop.h"
+#include "network.h"
+
+#define SERVER_PORT 12345
 
 int main() {
-    // Seed random number generator
     srand((unsigned int)time(NULL));
     
     printf("\n");
     printf("╔════════════════════════════════════════╗\n");
-    printf("║   ROGUELITE SERVER - WEEK 5 COMPLETE  ║\n");
+    printf("║   ROGUELITE NETWORKED SERVER           ║\n");
+    printf("║   Week 6 Complete                      ║\n");
     printf("╚════════════════════════════════════════╝\n");
     printf("\n");
     
-    // Create game
-    GameState game;
-    game_init(&game);
+    // Initialize network
+    SOCKET sock = network_init(SERVER_PORT);
+    if (sock == INVALID_SOCKET) {
+        printf("Failed to initialize network\n");
+        return 1;
+    }
     
-    // Run for 10 seconds
-    game_run(&game, 10.0f);
+    // Initialize game
+    GameState game;
+    game_init(&game, sock);
+    
+    // Run game loop (infinite)
+    game_run_networked(&game);
     
     // Cleanup
     game_cleanup(&game);
-    
-    printf("\nPress Enter to exit...\n");
-    getchar();
+    network_cleanup(sock);
     
     return 0;
 }
