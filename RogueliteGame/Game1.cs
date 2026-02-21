@@ -75,11 +75,10 @@ namespace RogueliteGame
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
-
             _spriteBatch.Begin();
 
-            // Draw game state if we have one
-            if (networkClient.HasNewState)
+            // Always draw the last state we received
+            if (networkClient.IsConnected)  // ← Check if connected, not if HasNewState
             {
                 StateMessage state = networkClient.LastState;
 
@@ -96,7 +95,7 @@ namespace RogueliteGame
                         _ => Color.White
                     };
 
-                    // Draw as rectangle (simple for now)
+                    // Draw as rectangle
                     Rectangle rect = new Rectangle(
                         (int)entity.X,
                         (int)entity.Y,
@@ -106,13 +105,9 @@ namespace RogueliteGame
 
                     _spriteBatch.Draw(pixelTexture, rect, color);
                 }
-
-                // Draw tick number
-                // (You'll need a SpriteFont for this - for now, skip or add later)
             }
 
             _spriteBatch.End();
-
             base.Draw(gameTime);
         }
 
