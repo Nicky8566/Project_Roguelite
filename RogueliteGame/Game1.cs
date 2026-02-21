@@ -4,6 +4,19 @@ using Microsoft.Xna.Framework.Input;
 using RogueliteGame.Networking;
 using System;
 
+// Currently
+// Server (C):
+//    Socket: 0.0.0.0:12345 (bound to port 12345)
+//    Listens for packets on this port
+    
+// Client (C#):
+//    Socket: 127.0.0.1:random (OS assigns random port, e.g., 61287)
+//    Sends TO: 127.0.0.1:12345
+    
+// Communication:
+//    Client (127.0.0.1:61287) → Server (127.0.0.1:12345)
+//    Server (127.0.0.1:12345) → Client (127.0.0.1:61287)
+
 namespace RogueliteGame
 {
     public class Game1 : Game
