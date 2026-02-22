@@ -114,19 +114,28 @@ Entity* entity_get_by_id(EntityManager* em, uint32_t id) {
     return NULL;  // Not found
 }
 
-// Update all entities
+// Update all entities, added projectile cleanup:
 void entity_update_all(EntityManager* em, float delta_time) {
     for (size_t i = 0; i < em->count; i++) {
         Entity* e = &em->entities[i];
         
-        if (!e->active) continue;  // Skip inactive
+        if (!e->active) continue;
         
-        // Update position based on velocity
+        // Update position
         e->position.x += e->velocity.x * delta_time;
         e->position.y += e->velocity.y * delta_time;
+        
+        // NEW: Remove projectiles that go off-screen
+        if (e->type == ENTITY_TYPE_PROJECTILE) {
+            // If projectile is way off screen, remove it
+            if (e->position.x < -1000 || e->position.x > 1800 ||
+                e->position.y < -1000 || e->position.y > 1200) {
+                e->active = false;
+                printf("Projectile %u went off-screen, removed\n", e->id);
+            }
+        }
     }
 }
-
 // Print all entities
 void entity_print_all(EntityManager* em) {
     printf("\n=== ENTITIES (%zu/%zu) ===\n", em->count, em->capacity);
