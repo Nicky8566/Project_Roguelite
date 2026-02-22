@@ -57,7 +57,7 @@ void game_run_networked(GameState* game) {
         game->total_time += TICK_TIME;
         
         // 1. Receive inputs from clients
-        network_receive_packets(game);
+        network_receive_packets(game, TICK_TIME);
         
         // 2. Check for client timeouts
         for (int i = 0; i < MAX_CLIENTS; i++) {

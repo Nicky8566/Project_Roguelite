@@ -11,7 +11,7 @@ SOCKET network_init(int port);
 NetworkClient* network_find_or_create_client(GameState* game, struct sockaddr_in* addr);
 
 // Handle incoming packets
-void network_receive_packets(GameState* game);
+void network_receive_packets(GameState* game, float delta_time);
 
 // Broadcast game state to all clients
 void network_broadcast_state(GameState* game);
