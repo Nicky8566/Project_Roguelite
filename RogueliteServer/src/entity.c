@@ -61,6 +61,7 @@ Entity* entity_create(EntityManager* em, EntityType type, Vector2 position) {
     e->position = position;
     e->velocity = vector2_create(0.0f, 0.0f);
     e->active = true;
+    e->owner_id = 0;  // Default: no owner
     
     // Initialize AI component
     e->ai.state = AI_STATE_IDLE;

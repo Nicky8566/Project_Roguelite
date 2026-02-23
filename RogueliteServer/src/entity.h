@@ -37,7 +37,8 @@ typedef struct {
     int health;
     int max_health;
     bool active;
-    AIComponent ai;          // ← NEW: AI data
+    AIComponent ai;  
+    uint32_t owner_id;       
 } Entity;
 
 // Entity manager

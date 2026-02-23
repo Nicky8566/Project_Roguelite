@@ -113,11 +113,15 @@ void ai_update_enemy(Entity* enemy, Entity* player, float delta_time, EntityMana
                     direction.y /= length;
                 }
                 
-                // Create projectile
-                Vector2 projectile_pos = enemy->position;
+                // Create projectile 20px away from enemy (avoid self-hit)
+                Vector2 projectile_pos;
+                projectile_pos.x = enemy->position.x + direction.x * 20.0f;
+                projectile_pos.y = enemy->position.y + direction.y * 20.0f;
+                
                 Entity* projectile = entity_create(em, ENTITY_TYPE_PROJECTILE, projectile_pos);
                 if (projectile) {
                     projectile->velocity = vector2_multiply(direction, PROJECTILE_SPEED);
+                    projectile->owner_id = enemy->id;  // Track who shot it
                     printf("Enemy %u fired projectile!\n", enemy->id);
                 }
                 

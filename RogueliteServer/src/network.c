@@ -194,6 +194,8 @@ void network_receive_packets(GameState *game, float delta_time)
                             {
                                 projectile->velocity.x = direction.x * 300.0f; // Fast projectile
                                 projectile->velocity.y = direction.y * 300.0f;
+                                projectile->owner_id = player->id;  // Track who shot it
+
 
                                 printf("Player %u fired projectile toward (%.1f, %.1f)\n",
                                        client->player_id, msg.mouse_x, msg.mouse_y);

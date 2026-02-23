@@ -55,7 +55,7 @@ bool collision_check_entities(Entity* a, Entity* b) {
 
 // Resolve all collisions
 void collision_resolve_all(EntityManager* em) {
-    // Check projectile vs enemy collisions
+    // Check projectile collisions
     for (size_t i = 0; i < em->count; i++) {
         Entity* projectile = &em->entities[i];
         
@@ -63,30 +63,39 @@ void collision_resolve_all(EntityManager* em) {
             continue;
         }
         
+        // Check against all non-projectile entities
         for (size_t j = 0; j < em->count; j++) {
             if (i == j) continue;
             
-            Entity* enemy = &em->entities[j];
+            Entity* target = &em->entities[j];
             
-            if (enemy->type != ENTITY_TYPE_ENEMY || !enemy->active) {
+            // Skip projectiles and inactive entities
+            if (target->type == ENTITY_TYPE_PROJECTILE || !target->active) {
                 continue;
             }
             
-            if (collision_check_entities(projectile, enemy)) {
+            // CRITICAL: Skip if projectile would hit its owner
+            if (projectile->owner_id == target->id) {
+                continue;
+            }
+            
+            // Check collision
+            if (collision_check_entities(projectile, target)) {
                 // Hit!
-                enemy->health -= 10;
+                target->health -= 10;
                 projectile->active = false;
                 
-                printf("Projectile %u hit Enemy %u! HP: %d\n", 
-                       projectile->id, enemy->id, enemy->health);
+                const char* target_type = (target->type == ENTITY_TYPE_PLAYER) ? "Player" : "Enemy";
+                printf("Projectile %u hit %s %u! HP: %d\n", 
+                       projectile->id, target_type, target->id, target->health);
                 
-                // Kill enemy if health depleted
-                if (enemy->health <= 0) {
-                    printf("Enemy %u destroyed!\n", enemy->id);
-                    enemy->active = false;
+                // Kill entity if health depleted
+                if (target->health <= 0) {
+                    printf("%s %u destroyed!\n", target_type, target->id);
+                    target->active = false;
                 }
                 
-                break;  // Projectile can only hit one enemy
+                break;  // Projectile can only hit one entity
             }
         }
     }
