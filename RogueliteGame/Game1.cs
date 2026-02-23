@@ -301,6 +301,11 @@ namespace RogueliteGame
 
             _spriteBatch.End();
 
+            // Draw UI overlay (no camera transform)
+            _spriteBatch.Begin();
+            DrawConnectionStatus();
+            _spriteBatch.End();
+
             base.Draw(gameTime);
         }
 
@@ -386,30 +391,52 @@ namespace RogueliteGame
             _spriteBatch.Draw(pixelTexture, fgRect, Color.LimeGreen);
         }
         // Add this method to Game1 class:
-private void DrawPlayerName(InterpolatedEntity entity)
-{
-    if (font == null) return;
-    
-    // Measure text
-    Vector2 textSize = font.MeasureString(entity.Name);
-    
-    // Scale down if needed (keep it small)
-    float scale = 0.5f;
-    Vector2 scaledSize = textSize * scale;
-    
-    // Position above health bar
-    Vector2 textPos = new Vector2(
-        entity.Position.X - scaledSize.X / 2,  // Center horizontally
-        entity.Position.Y - 35                  // Above health bar
-    );
-    
-    // Draw black shadow for readability
-    _spriteBatch.DrawString(font, entity.Name, textPos + new Vector2(1, 1), Color.Black, 
-        0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
-    
-    // Draw white text
-    _spriteBatch.DrawString(font, entity.Name, textPos, Color.White, 
-        0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
-}
+        private void DrawPlayerName(InterpolatedEntity entity)
+        {
+            if (font == null) return;
+
+            // Measure text
+            Vector2 textSize = font.MeasureString(entity.Name);
+
+            // Scale down if needed (keep it small)
+            float scale = 0.5f;
+            Vector2 scaledSize = textSize * scale;
+
+            // Position above health bar
+            Vector2 textPos = new Vector2(
+                entity.Position.X - scaledSize.X / 2,  // Center horizontally
+                entity.Position.Y - 35                  // Above health bar
+            );
+
+            // Draw black shadow for readability
+            _spriteBatch.DrawString(font, entity.Name, textPos + new Vector2(1, 1), Color.Black,
+                0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+
+            // Draw white text
+            _spriteBatch.DrawString(font, entity.Name, textPos, Color.White,
+                0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        }
+
+        private void DrawConnectionStatus()
+        {
+            // Top-right corner
+            int x = 1200;
+            int y = 20;
+            int size = 12;
+
+            // Status dot
+            Color statusColor = networkClient.IsConnected ? Color.LimeGreen : Color.Red;
+            Rectangle dot = new Rectangle(x, y, size, size);
+            _spriteBatch.Draw(pixelTexture, dot, statusColor);
+
+            // Status text (if font available)
+            if (font != null)
+            {
+                string statusText = networkClient.IsConnected ? "CONNECTED" : "DISCONNECTED";
+                Vector2 textPos = new Vector2(x + size + 5, y - 2);
+                _spriteBatch.DrawString(font, statusText, textPos, statusColor,
+                    0f, Vector2.Zero, 0.4f, SpriteEffects.None, 0f);
+            }
+        }
     }
 }
