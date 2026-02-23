@@ -9,6 +9,7 @@ namespace RogueliteGame
         
         public uint EntityId { get; set; }
         public EntityType Type { get; set; }
+         public string Name { get; set; }
         
         public Vector2 Position { get; private set; }
         public Vector2 TargetPosition { get; private set; }

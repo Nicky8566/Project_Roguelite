@@ -13,14 +13,15 @@ namespace RogueliteGame
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
-        
+
+
         // Network
         private NetworkClient networkClient;
-        
+
         // Rendering
         private Texture2D pixelTexture;
         private Camera camera;
-        
+
         // Sprite textures
         private Texture2D playerSprite;
         private Texture2D player2Sprite;
@@ -28,29 +29,31 @@ namespace RogueliteGame
         private Texture2D player4Sprite;
         private Texture2D enemySprite;
         private Texture2D projectileSprite;
-        
+
         // Entities
         private Dictionary<uint, InterpolatedEntity> entities;
         private uint myPlayerId;
-        
+        private Dictionary<uint, string> playerNames;
+
         // NEW: Game state and name input
         private enum GameState
         {
             EnteringName,
             Playing
         }
-        
+
         private GameState currentState = GameState.EnteringName;
         private string playerName = "";
         private KeyboardState previousKeyState;  // ← ADD THIS
         private SpriteFont font;
+
 
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
-            
+
             _graphics.PreferredBackBufferWidth = 1280;
             _graphics.PreferredBackBufferHeight = 720;
         }
@@ -59,19 +62,19 @@ namespace RogueliteGame
         {
             networkClient = new NetworkClient();
             entities = new Dictionary<uint, InterpolatedEntity>();
+            playerNames = new Dictionary<uint, string>();
             camera = new Camera(1280, 720);
-            previousKeyState = Keyboard.GetState();  // ← ADD THIS
-            
+            previousKeyState = Keyboard.GetState();
             base.Initialize();
         }
 
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-            
+
             pixelTexture = new Texture2D(GraphicsDevice, 1, 1);
             pixelTexture.SetData(new[] { Color.White });
-            
+
             // Load font
             try
             {
@@ -81,7 +84,7 @@ namespace RogueliteGame
             {
                 Console.WriteLine("Font not found");
             }
-            
+
             // Load sprites
             try
             {
@@ -101,7 +104,7 @@ namespace RogueliteGame
                 player4Sprite = CreateColoredSquare(Color.Orange, 32);
                 enemySprite = CreateColoredSquare(Color.Red, 32);
             }
-            
+
             projectileSprite = CreateColoredSquare(Color.Yellow, 8);
         }
 
@@ -124,7 +127,7 @@ namespace RogueliteGame
             {
                 KeyboardState keyState = Keyboard.GetState();
                 Keys[] pressedKeys = keyState.GetPressedKeys();
-                
+
                 foreach (Keys key in pressedKeys)
                 {
                     if (!previousKeyState.IsKeyDown(key))
@@ -133,6 +136,8 @@ namespace RogueliteGame
                         {
                             networkClient.Connect("127.0.0.1", 12345, playerName);
                             currentState = GameState.Playing;
+
+                            playerNames[0] = playerName;  // Temporary, will update with real ID
                         }
                         else if (key == Keys.Back && playerName.Length > 0)
                         {
@@ -148,38 +153,38 @@ namespace RogueliteGame
                         }
                     }
                 }
-                
+
                 previousKeyState = keyState;
                 base.Update(gameTime);
                 return;
             }
-            
+
             // PLAYING STATE
             MouseState mouseState = Mouse.GetState();
             Vector2 mouseScreenPos = new Vector2(mouseState.X, mouseState.Y);
             Vector2 mouseWorldPos = camera.ScreenToWorld(mouseScreenPos);
-            
+
             KeyboardState keyState2 = Keyboard.GetState();
             InputKeys keys = InputKeys.None;
-            
+
             if (keyState2.IsKeyDown(Keys.W)) keys |= InputKeys.W;
             if (keyState2.IsKeyDown(Keys.A)) keys |= InputKeys.A;
             if (keyState2.IsKeyDown(Keys.S)) keys |= InputKeys.S;
             if (keyState2.IsKeyDown(Keys.D)) keys |= InputKeys.D;
             if (keyState2.IsKeyDown(Keys.Space)) keys |= InputKeys.Space;
-            
+
             networkClient.SendInput(keys, mouseWorldPos.X, mouseWorldPos.Y);
             networkClient.Update();
-            
+
             if (networkClient.HasNewState)
             {
                 StateMessage state = networkClient.LastState;
                 HashSet<uint> receivedIds = new HashSet<uint>();
-                
+
                 foreach (var entityState in state.Entities)
                 {
                     receivedIds.Add(entityState.EntityId);
-                    
+
                     if (entities.ContainsKey(entityState.EntityId))
                     {
                         var entity = entities[entityState.EntityId];
@@ -197,26 +202,37 @@ namespace RogueliteGame
                         entity.Health = entityState.Health;
                         entity.Active = entityState.Active;
                         entities[entityState.EntityId] = entity;
-                        
+
                         if (entityState.Type == EntityType.Player && myPlayerId == 0)
                         {
                             myPlayerId = entityState.EntityId;
+                            if (playerNames.ContainsKey(0))
+                            {
+                                playerNames[myPlayerId] = playerNames[0];
+                                playerNames.Remove(0);
+                                entity.Name = playerNames[myPlayerId];
+                            }
+                        }
+                        // Set name if we have it
+                        if (playerNames.ContainsKey(entityState.EntityId))
+                        {
+                            entity.Name = playerNames[entityState.EntityId];
                         }
                     }
                 }
-                
+
                 var toRemove = entities.Keys.Except(receivedIds).ToList();
                 foreach (var id in toRemove)
                 {
                     entities.Remove(id);
                 }
             }
-            
+
             foreach (var entity in entities.Values)
             {
                 entity.Update(gameTime);
             }
-            
+
             if (myPlayerId != 0 && entities.ContainsKey(myPlayerId))
             {
                 camera.Follow(entities[myPlayerId].Position, 0.1f);
@@ -232,53 +248,57 @@ namespace RogueliteGame
             if (currentState == GameState.EnteringName)
             {
                 _spriteBatch.Begin();
-                
+
                 if (font != null)
                 {
                     string prompt = "Enter your name:";
                     string nameDisplay = playerName + "_";
                     string instruction = "Press ENTER to join";
-                    
+
                     Vector2 promptSize = font.MeasureString(prompt);
                     Vector2 nameSize = font.MeasureString(nameDisplay);
                     Vector2 instructionSize = font.MeasureString(instruction);
-                    
-                    _spriteBatch.DrawString(font, prompt, 
+
+                    _spriteBatch.DrawString(font, prompt,
                         new Vector2(640 - promptSize.X / 2, 300), Color.White);
-                    _spriteBatch.DrawString(font, nameDisplay, 
+                    _spriteBatch.DrawString(font, nameDisplay,
                         new Vector2(640 - nameSize.X / 2, 340), Color.Yellow);
-                    _spriteBatch.DrawString(font, instruction, 
+                    _spriteBatch.DrawString(font, instruction,
                         new Vector2(640 - instructionSize.X / 2, 400), Color.Gray);
                 }
-                
+
                 _spriteBatch.End();
                 base.Draw(gameTime);
                 return;
             }
 
             _spriteBatch.Begin(transformMatrix: camera.GetTransformMatrix());
-            
+
             DrawGrid();
-            
+
             foreach (var entity in entities.Values)
             {
                 if (!entity.Active) continue;
-                
+
                 Texture2D sprite = GetSpriteForEntity(entity);
-                
+
                 Vector2 drawPos = new Vector2(
                     entity.Position.X - sprite.Width / 2,
                     entity.Position.Y - sprite.Height / 2
                 );
-                
+
                 _spriteBatch.Draw(sprite, drawPos, Color.White);
-                
+
                 if (entity.Type != EntityType.Projectile)
                 {
                     DrawHealthBar(entity);
+                    if (entity.Type == EntityType.Player && !string.IsNullOrEmpty(entity.Name) && font != null)
+                    {
+                        DrawPlayerName(entity);
+                    }
                 }
             }
-            
+
             _spriteBatch.End();
 
             base.Draw(gameTime);
@@ -321,20 +341,20 @@ namespace RogueliteGame
             {
                 return projectileSprite;
             }
-            
+
             return pixelTexture;
         }
 
         private void DrawGrid()
         {
             Rectangle worldBounds = new Rectangle(-400, -300, 1600, 1200);
-            
+
             for (int x = worldBounds.Left; x <= worldBounds.Right; x += 100)
             {
                 Rectangle line = new Rectangle(x, worldBounds.Top, 1, worldBounds.Height);
                 _spriteBatch.Draw(pixelTexture, line, Color.Gray * 0.3f);
             }
-            
+
             for (int y = worldBounds.Top; y <= worldBounds.Bottom; y += 100)
             {
                 Rectangle line = new Rectangle(worldBounds.Left, y, worldBounds.Width, 1);
@@ -347,7 +367,7 @@ namespace RogueliteGame
             int barWidth = 32;
             int barHeight = 4;
             int yOffset = -20;
-            
+
             Rectangle bgRect = new Rectangle(
                 (int)entity.Position.X - barWidth / 2,
                 (int)entity.Position.Y + yOffset,
@@ -355,7 +375,7 @@ namespace RogueliteGame
                 barHeight
             );
             _spriteBatch.Draw(pixelTexture, bgRect, Color.DarkRed);
-            
+
             float healthPercent = entity.Health / 100.0f;
             Rectangle fgRect = new Rectangle(
                 bgRect.X,
@@ -365,5 +385,31 @@ namespace RogueliteGame
             );
             _spriteBatch.Draw(pixelTexture, fgRect, Color.LimeGreen);
         }
+        // Add this method to Game1 class:
+private void DrawPlayerName(InterpolatedEntity entity)
+{
+    if (font == null) return;
+    
+    // Measure text
+    Vector2 textSize = font.MeasureString(entity.Name);
+    
+    // Scale down if needed (keep it small)
+    float scale = 0.5f;
+    Vector2 scaledSize = textSize * scale;
+    
+    // Position above health bar
+    Vector2 textPos = new Vector2(
+        entity.Position.X - scaledSize.X / 2,  // Center horizontally
+        entity.Position.Y - 35                  // Above health bar
+    );
+    
+    // Draw black shadow for readability
+    _spriteBatch.DrawString(font, entity.Name, textPos + new Vector2(1, 1), Color.Black, 
+        0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+    
+    // Draw white text
+    _spriteBatch.DrawString(font, entity.Name, textPos, Color.White, 
+        0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+}
     }
 }
