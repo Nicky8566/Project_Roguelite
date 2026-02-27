@@ -43,6 +43,7 @@ typedef struct {
     uint8_t entity_type;   // 0=player, 1=enemy, 2=projectile
     float x, y;            // Position
     int16_t health;        // HP
+     int16_t max_health;
     bool active;
 } EntityState;
 
@@ -51,6 +52,9 @@ typedef struct {
     uint32_t tick;         // Server tick number
     uint8_t entity_count;  // How many entities
     EntityState entities[32];  // Max 32 entities
+     uint8_t player_count;          // NEW: Number of players
+    uint32_t player_ids[4];        // NEW: Player IDs
+    uint16_t player_kills[4];      // NEW: Kill counts
 } StateMessage;
 
 // Serialization functions

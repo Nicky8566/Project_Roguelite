@@ -17,6 +17,8 @@ namespace RogueliteGame
 
         // Network
         private NetworkClient networkClient;
+        private int myKills = 0;
+        private Dictionary<uint, bool> wasAlive = new Dictionary<uint, bool>();
 
         // Rendering
         private Texture2D pixelTexture;
@@ -190,7 +192,24 @@ namespace RogueliteGame
                         var entity = entities[entityState.EntityId];
                         entity.SetTargetPosition(new Vector2(entityState.X, entityState.Y));
                         entity.Health = entityState.Health;
+                        entity.MaxHealth = entityState.MaxHealth;
                         entity.Active = entityState.Active;
+
+                        // NEW: Track enemy deaths for kill counting
+                        if (entity.Type == EntityType.Enemy)
+                        {
+                            bool wasAliveLastFrame = wasAlive.ContainsKey(entity.EntityId) && wasAlive[entity.EntityId];
+                            bool isAliveNow = entity.Health > 0;
+
+                            // If it was alive last frame but dead now, count as kill
+                            if (wasAliveLastFrame && !isAliveNow)
+                            {
+                                myKills++;
+                                Console.WriteLine($"Enemy died! Total kills: {myKills}");
+                            }
+
+                            wasAlive[entity.EntityId] = isAliveNow;
+                        }
                     }
                     else
                     {
@@ -303,7 +322,7 @@ namespace RogueliteGame
 
             // Draw UI overlay (no camera transform)
             _spriteBatch.Begin();
-            DrawMinimap(); 
+            DrawMinimap();
             DrawConnectionStatus();
             _spriteBatch.End();
 
@@ -370,24 +389,25 @@ namespace RogueliteGame
 
         private void DrawHealthBar(InterpolatedEntity entity)
         {
-            int barWidth = 32;
-            int barHeight = 4;
-            int yOffset = -20;
+            float barWidth = 40;
+            float barHeight = 4;
 
-            Rectangle bgRect = new Rectangle(
-                (int)entity.Position.X - barWidth / 2,
-                (int)entity.Position.Y + yOffset,
-                barWidth,
-                barHeight
+            Vector2 barPos = new Vector2(
+                entity.Position.X - barWidth / 2,
+                entity.Position.Y - 25
             );
-            _spriteBatch.Draw(pixelTexture, bgRect, Color.DarkRed);
 
-            float healthPercent = entity.Health / 100.0f;
+            // Background (red)
+            Rectangle bgRect = new Rectangle((int)barPos.X, (int)barPos.Y, (int)barWidth, (int)barHeight);
+            _spriteBatch.Draw(pixelTexture, bgRect, Color.Red);
+
+            // Foreground (green) - based on health percentage
+            float healthPercent = entity.Health / 100f;  // ← PROBLEM: Assumes max health = 100
             Rectangle fgRect = new Rectangle(
-                bgRect.X,
-                bgRect.Y,
+                (int)barPos.X,
+                (int)barPos.Y,
                 (int)(barWidth * healthPercent),
-                barHeight
+                (int)barHeight
             );
             _spriteBatch.Draw(pixelTexture, fgRect, Color.LimeGreen);
         }
@@ -437,66 +457,75 @@ namespace RogueliteGame
                 Vector2 textPos = new Vector2(x + size + 5, y - 2);
                 _spriteBatch.DrawString(font, statusText, textPos, statusColor,
                     0f, Vector2.Zero, 0.4f, SpriteEffects.None, 0f);
+
+                // NEW: Draw kill count below connection status
+                if (networkClient.IsConnected && myKills >= 0)
+                {
+                    string killText = $"KILLS: {myKills}";
+                    Vector2 killPos = new Vector2(x + size + 5, y + 18);
+                    _spriteBatch.DrawString(font, killText, killPos, Color.Yellow,
+                        0f, Vector2.Zero, 0.4f, SpriteEffects.None, 0f);
+                }
             }
         }
         private void DrawMinimap()
-{
-    // Top-left corner
-    int mapX = 20;
-    int mapY = 20;
-    int mapWidth = 200;
-    int mapHeight = 150;
-    
-    // Semi-transparent background
-    Rectangle mapBg = new Rectangle(mapX, mapY, mapWidth, mapHeight);
-    _spriteBatch.Draw(pixelTexture, mapBg, Color.Black * 0.5f);
-    
-    // Border
-    DrawRectangleOutline(mapX, mapY, mapWidth, mapHeight, Color.White);
-    
-    // World bounds (-400, -300 to 1200, 900)
-    float worldWidth = 1600f;
-    float worldHeight = 1200f;
-    float worldOffsetX = 400f;
-    float worldOffsetY = 300f;
-    
-    // Draw entities on minimap
-    foreach (var entity in entities.Values)
-    {
-        if (!entity.Active) continue;
-        
-        // Convert world position to minimap position
-        float normalizedX = (entity.Position.X + worldOffsetX) / worldWidth;
-        float normalizedY = (entity.Position.Y + worldOffsetY) / worldHeight;
-        
-        int dotX = mapX + (int)(normalizedX * mapWidth);
-        int dotY = mapY + (int)(normalizedY * mapHeight);
-        
-        // Clamp to minimap bounds
-        dotX = Math.Clamp(dotX, mapX, mapX + mapWidth);
-        dotY = Math.Clamp(dotY, mapY, mapY + mapHeight);
-        
-        // Color based on type
-        Color dotColor = entity.Type switch
         {
-            EntityType.Player => entity.EntityId == myPlayerId ? Color.Yellow : Color.LimeGreen,
-            EntityType.Enemy => Color.Red,
-            _ => Color.White
-        };
-        
-        // Draw dot (3x3 pixels)
-        Rectangle dot = new Rectangle(dotX - 1, dotY - 1, 3, 3);
-        _spriteBatch.Draw(pixelTexture, dot, dotColor);
-    }
-}
+            // Top-left corner
+            int mapX = 20;
+            int mapY = 20;
+            int mapWidth = 200;
+            int mapHeight = 150;
 
-// Helper method to draw rectangle outline
-private void DrawRectangleOutline(int x, int y, int width, int height, Color color)
-{
-    _spriteBatch.Draw(pixelTexture, new Rectangle(x, y, width, 1), color);           // Top
-    _spriteBatch.Draw(pixelTexture, new Rectangle(x, y + height, width, 1), color);  // Bottom
-    _spriteBatch.Draw(pixelTexture, new Rectangle(x, y, 1, height), color);          // Left
-    _spriteBatch.Draw(pixelTexture, new Rectangle(x + width, y, 1, height), color);  // Right
-}
+            // Semi-transparent background
+            Rectangle mapBg = new Rectangle(mapX, mapY, mapWidth, mapHeight);
+            _spriteBatch.Draw(pixelTexture, mapBg, Color.Black * 0.5f);
+
+            // Border
+            DrawRectangleOutline(mapX, mapY, mapWidth, mapHeight, Color.White);
+
+            // World bounds (-400, -300 to 1200, 900)
+            float worldWidth = 1600f;
+            float worldHeight = 1200f;
+            float worldOffsetX = 400f;
+            float worldOffsetY = 300f;
+
+            // Draw entities on minimap
+            foreach (var entity in entities.Values)
+            {
+                if (!entity.Active) continue;
+
+                // Convert world position to minimap position
+                float normalizedX = (entity.Position.X + worldOffsetX) / worldWidth;
+                float normalizedY = (entity.Position.Y + worldOffsetY) / worldHeight;
+
+                int dotX = mapX + (int)(normalizedX * mapWidth);
+                int dotY = mapY + (int)(normalizedY * mapHeight);
+
+                // Clamp to minimap bounds
+                dotX = Math.Clamp(dotX, mapX, mapX + mapWidth);
+                dotY = Math.Clamp(dotY, mapY, mapY + mapHeight);
+
+                // Color based on type
+                Color dotColor = entity.Type switch
+                {
+                    EntityType.Player => entity.EntityId == myPlayerId ? Color.Yellow : Color.LimeGreen,
+                    EntityType.Enemy => Color.Red,
+                    _ => Color.White
+                };
+
+                // Draw dot (3x3 pixels)
+                Rectangle dot = new Rectangle(dotX - 1, dotY - 1, 3, 3);
+                _spriteBatch.Draw(pixelTexture, dot, dotColor);
+            }
+        }
+
+        // Helper method to draw rectangle outline
+        private void DrawRectangleOutline(int x, int y, int width, int height, Color color)
+        {
+            _spriteBatch.Draw(pixelTexture, new Rectangle(x, y, width, 1), color);           // Top
+            _spriteBatch.Draw(pixelTexture, new Rectangle(x, y + height, width, 1), color);  // Bottom
+            _spriteBatch.Draw(pixelTexture, new Rectangle(x, y, 1, height), color);          // Left
+            _spriteBatch.Draw(pixelTexture, new Rectangle(x + width, y, 1, height), color);  // Right
+        }
     }
 }

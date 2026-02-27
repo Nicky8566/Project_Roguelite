@@ -242,13 +242,13 @@ void network_broadcast_state(GameState *game)
         Entity *e = &game->entity_manager.entities[i];
         if (!e->active)
             continue;
-
-        EntityState *es = &state.entities[state.entity_count++];
+EntityState *es = &state.entities[state.entity_count++];
         es->entity_id = e->id;
         es->entity_type = e->type;
         es->x = e->position.x;
         es->y = e->position.y;
         es->health = e->health;
+        es->max_health = e->max_health;  // ADD THIS LINE
         es->active = e->active;
     }
 

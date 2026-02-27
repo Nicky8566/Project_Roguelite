@@ -126,13 +126,13 @@ void entity_update_all(EntityManager* em, float delta_time) {
         e->position.x += e->velocity.x * delta_time;
         e->position.y += e->velocity.y * delta_time;
         
-        // NEW: Remove projectiles that go off-screen
+        // NEW: Remove projectiles that go off map boundaries
         if (e->type == ENTITY_TYPE_PROJECTILE) {
-            // If projectile is way off screen, remove it
-            if (e->position.x < -1000 || e->position.x > 1800 ||
-                e->position.y < -1000 || e->position.y > 1200) {
+            // Use actual map boundaries (0-800, 0-600)
+            if (e->position.x < 0 || e->position.x > 800 ||
+                e->position.y < 0 || e->position.y > 600) {
                 e->active = false;
-                printf("Projectile %u went off-screen, removed\n", e->id);
+                printf("Projectile %u hit boundary, removed\n", e->id);
             }
         }
     }

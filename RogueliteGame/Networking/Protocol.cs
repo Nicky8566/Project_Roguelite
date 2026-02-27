@@ -41,6 +41,7 @@ namespace RogueliteGame.Networking
         public EntityType Type;
         public float X, Y;
         public short Health;
+        public short MaxHealth;
         public bool Active;
     }
 
@@ -114,9 +115,10 @@ namespace RogueliteGame.Networking
             state.Entities = new EntityState[entityCount];
             
             // Each entity (16 bytes each)
+           // Each entity (18 bytes each) -- CHANGED FROM 16
             for (int i = 0; i < entityCount; i++)
             {
-                if (offset + 16 > length) break;
+                if (offset + 18 > length) break;  // CHANGED FROM 16
                 
                 EntityState entity = new EntityState();
                 
@@ -137,12 +139,15 @@ namespace RogueliteGame.Networking
                 entity.Health = ReadInt16(buffer, offset);
                 offset += 2;
                 
+                // Max Health (2 bytes) -- ADD THIS
+                entity.MaxHealth = ReadInt16(buffer, offset);
+                offset += 2;
+                
                 // Active (1 byte)
                 entity.Active = buffer[offset++] != 0;
                 
                 state.Entities[i] = entity;
             }
-            
             return state;
         }
 

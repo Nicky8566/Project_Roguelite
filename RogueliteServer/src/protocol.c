@@ -134,8 +134,8 @@ int deserialize_input(const uint8_t* buffer, int buffer_size, InputMessage* msg)
 
 // Serialize STATE message
 int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
-    // Calculate required size
-    int required = 1 + 4 + 1 + (msg->entity_count * (4 + 1 + 4 + 4 + 2 + 1));
+    // Calculate required size (UPDATED: +2 bytes for max_health per entity)
+    int required = 1 + 4 + 1 + (msg->entity_count * (4 + 1 + 4 + 4 + 2 + 2 + 1));
     if (buffer_size < required) return -1;
     
     int offset = 0;
@@ -149,6 +149,7 @@ int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
     
     // Entity count (1 byte)
     buffer[offset++] = msg->entity_count;
+    
     
     // Each entity
     for (int i = 0; i < msg->entity_count; i++) {
@@ -171,6 +172,10 @@ int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
         write_int16(&buffer[offset], e->health);
         offset += 2;
         
+        // Max Health (2 bytes) - NEW
+        write_int16(&buffer[offset], e->max_health);
+        offset += 2;
+        
         // Active (1 byte)
         buffer[offset++] = e->active ? 1 : 0;
     }
@@ -179,26 +184,22 @@ int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
 }
 
 // Deserialize STATE message
-int deserialize_state(const uint8_t* buffer, int buffer_size, StateMessage* msg) {
-    if (buffer_size < 1 + 4 + 1) return -1;
+// Deserialize STATE message
+int deserialize_state(const uint8_t* buffer, int length, StateMessage* msg) {
+    if (length < 6) return -1;  // Minimum size (CHANGED: return -1)
     
-    int offset = 0;
+    int offset = 1;  // Skip message type
     
-    // Skip message type
-    offset++;
-    
-    // Tick number
+    // Tick
     msg->tick = read_uint32(&buffer[offset]);
     offset += 4;
     
     // Entity count
     msg->entity_count = buffer[offset++];
     
-    if (msg->entity_count > 32) return -1;  // Sanity check
-    
     // Each entity
-    for (int i = 0; i < msg->entity_count; i++) {
-        if (offset + 16 > buffer_size) return -1;
+    for (int i = 0; i < msg->entity_count && i < 32; i++) {
+        if (offset + 21 > length) break;  // Safety check (UPDATED: 19 -> 21)
         
         EntityState* e = &msg->entities[i];
         
@@ -219,9 +220,13 @@ int deserialize_state(const uint8_t* buffer, int buffer_size, StateMessage* msg)
         e->health = read_int16(&buffer[offset]);
         offset += 2;
         
+        // Max Health - NEW
+        e->max_health = read_int16(&buffer[offset]);
+        offset += 2;
+        
         // Active
         e->active = buffer[offset++] != 0;
     }
     
-    return offset;
+    return offset;  // ADD THIS LINE
 }

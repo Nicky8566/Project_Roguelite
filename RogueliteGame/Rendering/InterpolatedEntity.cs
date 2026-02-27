@@ -16,6 +16,7 @@ namespace RogueliteGame
         private Vector2 previousPosition;
         
         public short Health { get; set; }
+        public short MaxHealth { get; set; }
         public bool Active { get; set; }
         
         // NEW: Rotation (in radians)
