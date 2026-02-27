@@ -1,4 +1,5 @@
 #include "collision.h"
+#include "game_loop.h"
 #include <stdio.h>
 
 // Entity sizes (in pixels)
@@ -53,8 +54,11 @@ bool collision_check_entities(Entity* a, Entity* b) {
     return collision_check_aabb(box_a, box_b);
 }
 
-// Resolve all collisions
-void collision_resolve_all(EntityManager* em) {
+// Resolve all collisions (UPDATED: tracks kills)
+void collision_resolve_all(void* game_ptr) {
+    GameState* game = (GameState*)game_ptr;
+    EntityManager* em = &game->entity_manager;
+    
     // Check projectile collisions
     for (size_t i = 0; i < em->count; i++) {
         Entity* projectile = &em->entities[i];
@@ -93,6 +97,18 @@ void collision_resolve_all(EntityManager* em) {
                 if (target->health <= 0) {
                     printf("%s %u destroyed!\n", target_type, target->id);
                     target->active = false;
+                    
+                    // NEW: Track kills
+                    // Find who owns the projectile and increment their kills
+                    for (int k = 0; k < MAX_CLIENTS; k++) {
+                        if (game->clients[k].connected && 
+                            game->clients[k].player_id == projectile->owner_id) {
+                            game->clients[k].kills++;
+                            printf("Player %u now has %d kills!\n", 
+                                   projectile->owner_id, game->clients[k].kills);
+                            break;
+                        }
+                    }
                 }
                 
                 break;  // Projectile can only hit one entity

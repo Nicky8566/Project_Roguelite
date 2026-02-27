@@ -4,6 +4,7 @@
 #include "vector2.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>  // For size_t
 
 // Entity types
 typedef enum {

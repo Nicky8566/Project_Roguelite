@@ -20,7 +20,7 @@ bool collision_check_aabb(BoundingBox a, BoundingBox b);
 // Check collision between two entities
 bool collision_check_entities(Entity* a, Entity* b);
 
-// Check and resolve all collisions in manager
-void collision_resolve_all(EntityManager* em);
+// Check and resolve all collisions in manager (needs GameState for kill tracking)
+void collision_resolve_all(void* game_state);
 
 #endif
