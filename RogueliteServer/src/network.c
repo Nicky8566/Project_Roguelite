@@ -251,6 +251,11 @@ EntityState *es = &state.entities[state.entity_count++];
         es->max_health = e->max_health;  // ADD THIS LINE
         es->active = e->active;
     }
+    
+    // NEW: Add wave system data
+    state.current_wave = (uint8_t)game->current_wave;
+    state.wave_active = game->wave_active ? 1 : 0;
+    state.wave_countdown = game->wave_countdown;
 
     // Serialize
     uint8_t buffer[MAX_PACKET_SIZE];

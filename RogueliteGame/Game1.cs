@@ -48,6 +48,11 @@ namespace RogueliteGame
         private string playerName = "";
         private KeyboardState previousKeyState;  // ← ADD THIS
         private SpriteFont font;
+        
+        // Wave system tracking
+        private byte currentWave = 0;
+        private bool waveActive = false;
+        private float waveCountdown = 0f;
 
 
         public Game1()
@@ -182,6 +187,11 @@ namespace RogueliteGame
             {
                 StateMessage state = networkClient.LastState;
                 HashSet<uint> receivedIds = new HashSet<uint>();
+                
+                // NEW: Update wave system state
+                currentWave = state.CurrentWave;
+                waveActive = state.WaveActive;
+                waveCountdown = state.WaveCountdown;
 
                 foreach (var entityState in state.Entities)
                 {
@@ -219,6 +229,7 @@ namespace RogueliteGame
                             new Vector2(entityState.X, entityState.Y)
                         );
                         entity.Health = entityState.Health;
+                        entity.MaxHealth = entityState.MaxHealth;  // ADD THIS LINE
                         entity.Active = entityState.Active;
                         entities[entityState.EntityId] = entity;
 
@@ -324,6 +335,7 @@ namespace RogueliteGame
             _spriteBatch.Begin();
             DrawMinimap();
             DrawConnectionStatus();
+            DrawWaveInfo();  // NEW: Wave countdown
             _spriteBatch.End();
 
             base.Draw(gameTime);
@@ -402,7 +414,7 @@ namespace RogueliteGame
             _spriteBatch.Draw(pixelTexture, bgRect, Color.Red);
 
             // Foreground (green) - based on health percentage
-            float healthPercent = entity.Health / 100f;  // ← PROBLEM: Assumes max health = 100
+            float healthPercent = entity.MaxHealth > 0 ? (float)entity.Health / (float)entity.MaxHealth : 0f;
             Rectangle fgRect = new Rectangle(
                 (int)barPos.X,
                 (int)barPos.Y,
@@ -468,6 +480,41 @@ namespace RogueliteGame
                 }
             }
         }
+        
+        private void DrawWaveInfo()
+        {
+            if (font == null) return;
+            
+            // Center top of screen
+            int centerX = 640;
+            int y = 20;
+            
+            if (!waveActive && waveCountdown > 0)
+            {
+                // Countdown between waves
+                string countdownText = $"NEXT WAVE IN {(int)Math.Ceiling(waveCountdown)}";
+                Vector2 textSize = font.MeasureString(countdownText);
+                Vector2 textPos = new Vector2(centerX - textSize.X * 0.3f, y);
+                
+                // Draw with pulsing effect
+                float pulse = (float)Math.Abs(Math.Sin(waveCountdown * 3)) * 0.3f + 0.7f;
+                Color pulseColor = Color.Yellow * pulse;
+                
+                _spriteBatch.DrawString(font, countdownText, textPos, pulseColor,
+                    0f, Vector2.Zero, 0.6f, SpriteEffects.None, 0f);
+            }
+            else if (waveActive && currentWave > 0)
+            {
+                // Show current wave
+                string waveText = $"WAVE {currentWave}";
+                Vector2 textSize = font.MeasureString(waveText);
+                Vector2 textPos = new Vector2(centerX - textSize.X * 0.25f, y);
+                
+                _spriteBatch.DrawString(font, waveText, textPos, Color.Cyan,
+                    0f, Vector2.Zero, 0.5f, SpriteEffects.None, 0f);
+            }
+        }
+        
         private void DrawMinimap()
         {
             // Top-left corner

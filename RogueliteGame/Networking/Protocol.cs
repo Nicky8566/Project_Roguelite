@@ -50,6 +50,11 @@ namespace RogueliteGame.Networking
     {
         public uint Tick;
         public EntityState[] Entities;
+        
+        // Wave system
+        public byte CurrentWave;
+        public bool WaveActive;
+        public float WaveCountdown;
     }
 
     public static class Protocol
@@ -148,6 +153,16 @@ namespace RogueliteGame.Networking
                 
                 state.Entities[i] = entity;
             }
+            
+            // NEW: Wave system data (if available)
+            if (offset + 6 <= length)
+            {
+                state.CurrentWave = buffer[offset++];
+                state.WaveActive = buffer[offset++] != 0;
+                state.WaveCountdown = ReadFloat(buffer, offset);
+                offset += 4;
+            }
+            
             return state;
         }
 

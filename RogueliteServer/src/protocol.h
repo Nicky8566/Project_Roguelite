@@ -52,9 +52,11 @@ typedef struct {
     uint32_t tick;         // Server tick number
     uint8_t entity_count;  // How many entities
     EntityState entities[32];  // Max 32 entities
-     uint8_t player_count;          // NEW: Number of players
-    uint32_t player_ids[4];        // NEW: Player IDs
-    uint16_t player_kills[4];      // NEW: Kill counts
+    
+    // Wave system
+    uint8_t current_wave;
+    uint8_t wave_active;      // 1 = active, 0 = countdown
+    float wave_countdown;     // Seconds until next wave
 } StateMessage;
 
 // Serialization functions

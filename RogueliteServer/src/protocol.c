@@ -134,8 +134,8 @@ int deserialize_input(const uint8_t* buffer, int buffer_size, InputMessage* msg)
 
 // Serialize STATE message
 int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
-    // Calculate required size (UPDATED: +2 bytes for max_health per entity)
-    int required = 1 + 4 + 1 + (msg->entity_count * (4 + 1 + 4 + 4 + 2 + 2 + 1));
+    // Calculate required size (entities + wave data: 1 + 1 + 4)
+    int required = 1 + 4 + 1 + (msg->entity_count * (4 + 1 + 4 + 4 + 2 + 2 + 1)) + 6;
     if (buffer_size < required) return -1;
     
     int offset = 0;
@@ -172,13 +172,19 @@ int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
         write_int16(&buffer[offset], e->health);
         offset += 2;
         
-        // Max Health (2 bytes) - NEW
+        // Max Health (2 bytes)
         write_int16(&buffer[offset], e->max_health);
         offset += 2;
         
         // Active (1 byte)
         buffer[offset++] = e->active ? 1 : 0;
     }
+    
+    // NEW: Wave system data
+    buffer[offset++] = msg->current_wave;     // 1 byte
+    buffer[offset++] = msg->wave_active;      // 1 byte
+    write_float(&buffer[offset], msg->wave_countdown);  // 4 bytes
+    offset += 4;
     
     return offset;
 }
@@ -228,5 +234,17 @@ int deserialize_state(const uint8_t* buffer, int length, StateMessage* msg) {
         e->active = buffer[offset++] != 0;
     }
     
-    return offset;  // ADD THIS LINE
+    // NEW: Wave system data (if available)
+    if (offset + 6 <= length) {
+        msg->current_wave = buffer[offset++];
+        msg->wave_active = buffer[offset++];
+        msg->wave_countdown = read_float(&buffer[offset]);
+        offset += 4;
+    } else {
+        msg->current_wave = 0;
+        msg->wave_active = 0;
+        msg->wave_countdown = 0.0f;
+    }
+    
+    return offset;
 }
