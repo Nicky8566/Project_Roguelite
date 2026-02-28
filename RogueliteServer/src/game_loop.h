@@ -16,11 +16,11 @@
 // Maximum clients
 #define MAX_CLIENTS 4
 
-// Map boundaries
-#define MAP_MIN_X 0.0f
-#define MAP_MIN_Y 0.0f
-#define MAP_MAX_X 800.0f
-#define MAP_MAX_Y 600.0f
+// Map boundaries (match client grid)
+#define MAP_MIN_X -400.0f
+#define MAP_MIN_Y -300.0f
+#define MAP_MAX_X 1200.0f
+#define MAP_MAX_Y 900.0f
 
 // Client info
 typedef struct {

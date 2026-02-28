@@ -62,6 +62,7 @@ Entity* entity_create(EntityManager* em, EntityType type, Vector2 position) {
     e->velocity = vector2_create(0.0f, 0.0f);
     e->active = true;
     e->owner_id = 0;  // Default: no owner
+    e->rotation = 0.0f;  // NEW: Start facing right
     
     // Initialize AI component
     e->ai.state = AI_STATE_IDLE;
@@ -128,9 +129,9 @@ void entity_update_all(EntityManager* em, float delta_time) {
         
         // NEW: Remove projectiles that go off map boundaries
         if (e->type == ENTITY_TYPE_PROJECTILE) {
-            // Use actual map boundaries (0-800, 0-600)
-            if (e->position.x < 0 || e->position.x > 800 ||
-                e->position.y < 0 || e->position.y > 600) {
+            // Check against map boundaries
+            if (e->position.x < -400 || e->position.x > 1200 ||
+                e->position.y < -300 || e->position.y > 900) {
                 e->active = false;
                 printf("Projectile %u hit boundary, removed\n", e->id);
             }

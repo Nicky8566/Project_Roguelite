@@ -42,6 +42,7 @@ namespace RogueliteGame.Networking
         public float X, Y;
         public short Health;
         public short MaxHealth;
+        public float Rotation;  // NEW: Rotation angle in radians
         public bool Active;
     }
 
@@ -119,11 +120,10 @@ namespace RogueliteGame.Networking
             byte entityCount = buffer[offset++];
             state.Entities = new EntityState[entityCount];
             
-            // Each entity (16 bytes each)
-           // Each entity (18 bytes each) -- CHANGED FROM 16
+            // Each entity (22 bytes each: id:4 + type:1 + pos:8 + hp:2 + maxhp:2 + rot:4 + active:1)
             for (int i = 0; i < entityCount; i++)
             {
-                if (offset + 18 > length) break;  // CHANGED FROM 16
+                if (offset + 22 > length) break;
                 
                 EntityState entity = new EntityState();
                 
@@ -144,9 +144,13 @@ namespace RogueliteGame.Networking
                 entity.Health = ReadInt16(buffer, offset);
                 offset += 2;
                 
-                // Max Health (2 bytes) -- ADD THIS
+                // Max Health (2 bytes)
                 entity.MaxHealth = ReadInt16(buffer, offset);
                 offset += 2;
+                
+                // Rotation (4 bytes) - NEW
+                entity.Rotation = ReadFloat(buffer, offset);
+                offset += 4;
                 
                 // Active (1 byte)
                 entity.Active = buffer[offset++] != 0;

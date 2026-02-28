@@ -43,7 +43,8 @@ typedef struct {
     uint8_t entity_type;   // 0=player, 1=enemy, 2=projectile
     float x, y;            // Position
     int16_t health;        // HP
-     int16_t max_health;
+    int16_t max_health;
+    float rotation;        // NEW: Rotation angle in radians
     bool active;
 } EntityState;
 

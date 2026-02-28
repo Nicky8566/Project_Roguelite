@@ -134,8 +134,8 @@ int deserialize_input(const uint8_t* buffer, int buffer_size, InputMessage* msg)
 
 // Serialize STATE message
 int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
-    // Calculate required size (entities + wave data: 1 + 1 + 4)
-    int required = 1 + 4 + 1 + (msg->entity_count * (4 + 1 + 4 + 4 + 2 + 2 + 1)) + 6;
+    // Calculate required size: entities (id:4 + type:1 + x:4 + y:4 + hp:2 + maxhp:2 + rot:4 + active:1 = 22) + wave:6
+    int required = 1 + 4 + 1 + (msg->entity_count * 22) + 6;
     if (buffer_size < required) return -1;
     
     int offset = 0;
@@ -176,6 +176,10 @@ int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
         write_int16(&buffer[offset], e->max_health);
         offset += 2;
         
+        // NEW: Rotation (4 bytes)
+        write_float(&buffer[offset], e->rotation);
+        offset += 4;
+        
         // Active (1 byte)
         buffer[offset++] = e->active ? 1 : 0;
     }
@@ -205,7 +209,7 @@ int deserialize_state(const uint8_t* buffer, int length, StateMessage* msg) {
     
     // Each entity
     for (int i = 0; i < msg->entity_count && i < 32; i++) {
-        if (offset + 21 > length) break;  // Safety check (UPDATED: 19 -> 21)
+        if (offset + 25 > length) break;  // Safety check: 4+1+4+4+2+2+4+1 = 22 bytes + buffer
         
         EntityState* e = &msg->entities[i];
         
@@ -226,9 +230,13 @@ int deserialize_state(const uint8_t* buffer, int length, StateMessage* msg) {
         e->health = read_int16(&buffer[offset]);
         offset += 2;
         
-        // Max Health - NEW
+        // Max Health
         e->max_health = read_int16(&buffer[offset]);
         offset += 2;
+        
+        // NEW: Rotation
+        e->rotation = read_float(&buffer[offset]);
+        offset += 4;
         
         // Active
         e->active = buffer[offset++] != 0;

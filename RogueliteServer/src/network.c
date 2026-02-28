@@ -164,6 +164,11 @@ void network_receive_packets(GameState *game, float delta_time)
                     velocity.x += 100.0f;
 
                 player->velocity = velocity;
+                
+                // NEW: Calculate player rotation (face mouse)
+                Vector2 mouse_pos = vector2_create(msg.mouse_x, msg.mouse_y);
+                Vector2 to_mouse = vector2_subtract(mouse_pos, player->position);
+                player->rotation = atan2f(to_mouse.y, to_mouse.x);  // atan2(y, x) gives angle in radians
 
                 // NEW: Handle shooting
                 if (msg.keys & KEY_SPACE)
@@ -195,7 +200,7 @@ void network_receive_packets(GameState *game, float delta_time)
                                 projectile->velocity.x = direction.x * 300.0f; // Fast projectile
                                 projectile->velocity.y = direction.y * 300.0f;
                                 projectile->owner_id = player->id;  // Track who shot it
-
+                                projectile->rotation = player->rotation;  // Face same as player
 
                                 printf("Player %u fired projectile toward (%.1f, %.1f)\n",
                                        client->player_id, msg.mouse_x, msg.mouse_y);
@@ -248,7 +253,8 @@ EntityState *es = &state.entities[state.entity_count++];
         es->x = e->position.x;
         es->y = e->position.y;
         es->health = e->health;
-        es->max_health = e->max_health;  // ADD THIS LINE
+        es->max_health = e->max_health;
+        es->rotation = e->rotation;  // NEW: Add rotation
         es->active = e->active;
     }
     

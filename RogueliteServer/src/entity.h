@@ -39,7 +39,8 @@ typedef struct {
     int max_health;
     bool active;
     AIComponent ai;  
-    uint32_t owner_id;       
+    uint32_t owner_id;
+    float rotation;  // NEW: Rotation angle in radians (0 = right, PI/2 = down)
 } Entity;
 
 // Entity manager

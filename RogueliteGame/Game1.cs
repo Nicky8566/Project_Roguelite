@@ -203,6 +203,7 @@ namespace RogueliteGame
                         entity.SetTargetPosition(new Vector2(entityState.X, entityState.Y));
                         entity.Health = entityState.Health;
                         entity.MaxHealth = entityState.MaxHealth;
+                        entity.Rotation = entityState.Rotation;  // NEW: Set rotation
                         entity.Active = entityState.Active;
 
                         // NEW: Track enemy deaths for kill counting
@@ -229,7 +230,8 @@ namespace RogueliteGame
                             new Vector2(entityState.X, entityState.Y)
                         );
                         entity.Health = entityState.Health;
-                        entity.MaxHealth = entityState.MaxHealth;  // ADD THIS LINE
+                        entity.MaxHealth = entityState.MaxHealth;
+                        entity.Rotation = entityState.Rotation;  // NEW: Set rotation
                         entity.Active = entityState.Active;
                         entities[entityState.EntityId] = entity;
 
@@ -312,12 +314,21 @@ namespace RogueliteGame
 
                 Texture2D sprite = GetSpriteForEntity(entity);
 
-                Vector2 drawPos = new Vector2(
-                    entity.Position.X - sprite.Width / 2,
-                    entity.Position.Y - sprite.Height / 2
+                // NEW: Draw with rotation using sprite center as origin
+                Vector2 origin = new Vector2(sprite.Width / 2f, sprite.Height / 2f);
+                Vector2 position = entity.Position;  // Use center position
+                
+                _spriteBatch.Draw(
+                    texture: sprite,
+                    position: position,
+                    sourceRectangle: null,
+                    color: Color.White,
+                    rotation: entity.Rotation,  // Rotate around center
+                    origin: origin,             // Origin at center
+                    scale: 1f,
+                    effects: SpriteEffects.None,
+                    layerDepth: 0f
                 );
-
-                _spriteBatch.Draw(sprite, drawPos, Color.White);
 
                 if (entity.Type != EntityType.Projectile)
                 {

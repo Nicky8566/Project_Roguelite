@@ -91,6 +91,7 @@ void ai_update_enemy(Entity* enemy, Entity* player, float delta_time, EntityMana
                 direction.x /= length;
                 direction.y /= length;
                 enemy->velocity = vector2_multiply(direction, CHASE_SPEED);
+                enemy->rotation = atan2f(direction.y, direction.x);  // Face movement direction
             }
             break;
             
@@ -111,6 +112,7 @@ void ai_update_enemy(Entity* enemy, Entity* player, float delta_time, EntityMana
                 if (length > 0.0f) {
                     direction.x /= length;
                     direction.y /= length;
+                    enemy->rotation = atan2f(direction.y, direction.x);  // Face target
                 }
                 
                 // Create projectile 20px away from enemy (avoid self-hit)
@@ -122,6 +124,7 @@ void ai_update_enemy(Entity* enemy, Entity* player, float delta_time, EntityMana
                 if (projectile) {
                     projectile->velocity = vector2_multiply(direction, PROJECTILE_SPEED);
                     projectile->owner_id = enemy->id;  // Track who shot it
+                    projectile->rotation = enemy->rotation;  // Projectile faces same direction
                     printf("Enemy %u fired projectile!\n", enemy->id);
                 }
                 
