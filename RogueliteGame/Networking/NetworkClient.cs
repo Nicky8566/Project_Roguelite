@@ -14,12 +14,15 @@ namespace RogueliteGame.Networking
         public StateMessage LastState { get; private set; }
         public bool HasNewState { get; private set; }
         public uint PlayerId { get; private set; }
+        
+        // NEW: Event when server assigns our player ID
+        public event Action<uint> OnPlayerIdAssigned;
 
         public NetworkClient()
         {
             udpClient = null;
             connected = false;
-            PlayerId = 1; // Default player ID
+            PlayerId = 0; // 0 = not assigned yet
         }
 
         // Connect to server
@@ -77,10 +80,29 @@ namespace RogueliteGame.Networking
                     byte[] receivedData = udpClient.Receive(ref remoteEndPoint);
 
                     // Check message type
-                    if (receivedData.Length > 0 && receivedData[0] == (byte)MessageType.State)
+                    if (receivedData.Length > 0)
                     {
-                        LastState = Protocol.DeserializeState(receivedData, receivedData.Length);
-                        HasNewState = true;
+                        MessageType msgType = (MessageType)receivedData[0];
+                        
+                        if (msgType == MessageType.Welcome && receivedData.Length >= 5)
+                        {
+                            // Server told us our player ID!
+                            uint assignedId = ((uint)receivedData[1] << 24) |
+                                            ((uint)receivedData[2] << 16) |
+                                            ((uint)receivedData[3] << 8) |
+                                            ((uint)receivedData[4]);
+                            
+                            PlayerId = assignedId;
+                            Console.WriteLine($"[NetworkClient] Server assigned us Player ID: {PlayerId}");
+                            
+                            // Trigger event
+                            OnPlayerIdAssigned?.Invoke(PlayerId);
+                        }
+                        else if (msgType == MessageType.State)
+                        {
+                            LastState = Protocol.DeserializeState(receivedData, receivedData.Length);
+                            HasNewState = true;
+                        }
                     }
                 }
             }

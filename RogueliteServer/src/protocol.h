@@ -11,7 +11,8 @@ typedef enum {
     MSG_INPUT = 2,        // Client → Server: Player input
     MSG_STATE = 3,        // Server → Client: Game state
     MSG_PING = 4,         // Bidirectional: Keep-alive
-    MSG_PONG = 5          // Response to ping
+    MSG_PONG = 5,         // Response to ping
+    MSG_WELCOME = 6       // NEW: Server → Client: Your player ID
 } MessageType;
 
 // Input keys (bitflags)

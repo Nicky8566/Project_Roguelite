@@ -11,7 +11,8 @@ namespace RogueliteGame.Networking
         Input = 2,
         State = 3,
         Ping = 4,
-        Pong = 5
+        Pong = 5,
+        Welcome = 6  // NEW: Server tells us our player ID
     }
 
     // Input keys (same as C protocol)

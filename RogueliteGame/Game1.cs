@@ -141,10 +141,16 @@ namespace RogueliteGame
                     {
                         if (key == Keys.Enter && playerName.Length > 0)
                         {
+                            // Subscribe to player ID event BEFORE connecting
+                            networkClient.OnPlayerIdAssigned += (uint assignedId) =>
+                            {
+                                myPlayerId = assignedId;
+                                playerNames[assignedId] = playerName;
+                                Console.WriteLine($"[Game1] We are Player {assignedId} ({playerName})");
+                            };
+                            
                             networkClient.Connect("127.0.0.1", 12345, playerName);
                             currentState = GameState.Playing;
-
-                            playerNames[0] = playerName;  // Temporary, will update with real ID
                         }
                         else if (key == Keys.Back && playerName.Length > 0)
                         {
@@ -235,18 +241,8 @@ namespace RogueliteGame
                         entity.Active = entityState.Active;
                         entities[entityState.EntityId] = entity;
 
-                        if (entityState.Type == EntityType.Player && myPlayerId == 0)
-                        {
-                            myPlayerId = entityState.EntityId;
-                            if (playerNames.ContainsKey(0))
-                            {
-                                playerNames[myPlayerId] = playerNames[0];
-                                playerNames.Remove(0);
-                                entity.Name = playerNames[myPlayerId];
-                            }
-                        }
-                        // Set name if we have it
-                        if (playerNames.ContainsKey(entityState.EntityId))
+                        // Set name for this player if we have it
+                        if (entityState.Type == EntityType.Player && playerNames.ContainsKey(entityState.EntityId))
                         {
                             entity.Name = playerNames[entityState.EntityId];
                         }

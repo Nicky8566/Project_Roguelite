@@ -140,7 +140,20 @@ void network_receive_packets(GameState *game, float delta_time)
         {
             ConnectMessage msg;
             deserialize_connect(buffer, recv_len, &msg);
-            printf("Player '%s' connected\n", msg.player_name);
+            printf("Player '%s' connected (assigned ID: %u)\n", msg.player_name, client->player_id);
+            
+            // NEW: Send WELCOME message with their player ID
+            uint8_t welcome_buffer[16];
+            welcome_buffer[0] = MSG_WELCOME;  // Message type
+            welcome_buffer[1] = (client->player_id >> 24) & 0xFF;  // Player ID (big-endian)
+            welcome_buffer[2] = (client->player_id >> 16) & 0xFF;
+            welcome_buffer[3] = (client->player_id >> 8) & 0xFF;
+            welcome_buffer[4] = client->player_id & 0xFF;
+            
+            sendto(game->socket, (char*)welcome_buffer, 5, 0,
+                   (struct sockaddr*)&client->addr, sizeof(client->addr));
+            
+            printf("Sent WELCOME to client with player ID %u\n", client->player_id);
         }
         else if (msg_type == MSG_INPUT)
         {
