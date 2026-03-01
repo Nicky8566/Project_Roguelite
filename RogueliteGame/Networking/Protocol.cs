@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace RogueliteGame.Networking
@@ -57,6 +58,9 @@ namespace RogueliteGame.Networking
         public byte CurrentWave;
         public bool WaveActive;
         public float WaveCountdown;
+        
+        // NEW: Player names
+        public Dictionary<uint, string> PlayerNames;
     }
 
     public static class Protocol
@@ -159,13 +163,30 @@ namespace RogueliteGame.Networking
                 state.Entities[i] = entity;
             }
             
-            // NEW: Wave system data (if available)
+            // Wave system data (if available)
             if (offset + 6 <= length)
             {
                 state.CurrentWave = buffer[offset++];
                 state.WaveActive = buffer[offset++] != 0;
                 state.WaveCountdown = ReadFloat(buffer, offset);
                 offset += 4;
+            }
+            
+            // NEW: Player names (if available)
+            state.PlayerNames = new Dictionary<uint, string>();
+            if (offset + 1 <= length)
+            {
+                byte playerCount = buffer[offset++];
+                for (int i = 0; i < playerCount && offset + 36 <= length; i++)
+                {
+                    uint playerId = ReadUInt32(buffer, offset);
+                    offset += 4;
+                    
+                    string name = System.Text.Encoding.ASCII.GetString(buffer, offset, 32).TrimEnd('\0');
+                    offset += 32;
+                    
+                    state.PlayerNames[playerId] = name;
+                }
             }
             
             return state;

@@ -194,10 +194,20 @@ namespace RogueliteGame
                 StateMessage state = networkClient.LastState;
                 HashSet<uint> receivedIds = new HashSet<uint>();
                 
-                // NEW: Update wave system state
+                // Update wave system state
                 currentWave = state.CurrentWave;
                 waveActive = state.WaveActive;
                 waveCountdown = state.WaveCountdown;
+                
+                // NEW: Update all player names from server
+                if (state.PlayerNames != null)
+                {
+                    foreach (var kvp in state.PlayerNames)
+                    {
+                        playerNames[kvp.Key] = kvp.Value;
+                        Console.WriteLine($"[Game1] Player {kvp.Key} is '{kvp.Value}'");
+                    }
+                }
 
                 foreach (var entityState in state.Entities)
                 {
@@ -209,10 +219,16 @@ namespace RogueliteGame
                         entity.SetTargetPosition(new Vector2(entityState.X, entityState.Y));
                         entity.Health = entityState.Health;
                         entity.MaxHealth = entityState.MaxHealth;
-                        entity.Rotation = entityState.Rotation;  // NEW: Set rotation
+                        entity.Rotation = entityState.Rotation;
                         entity.Active = entityState.Active;
+                        
+                        // Set name if this is a player and we have their name
+                        if (entity.Type == EntityType.Player && playerNames.ContainsKey(entityState.EntityId))
+                        {
+                            entity.Name = playerNames[entityState.EntityId];
+                        }
 
-                        // NEW: Track enemy deaths for kill counting
+                        // Track enemy deaths for kill counting
                         if (entity.Type == EntityType.Enemy)
                         {
                             bool wasAliveLastFrame = wasAlive.ContainsKey(entity.EntityId) && wasAlive[entity.EntityId];

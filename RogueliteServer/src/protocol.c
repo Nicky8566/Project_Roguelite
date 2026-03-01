@@ -134,8 +134,8 @@ int deserialize_input(const uint8_t* buffer, int buffer_size, InputMessage* msg)
 
 // Serialize STATE message
 int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
-    // Calculate required size: entities (id:4 + type:1 + x:4 + y:4 + hp:2 + maxhp:2 + rot:4 + active:1 = 22) + wave:6
-    int required = 1 + 4 + 1 + (msg->entity_count * 22) + 6;
+    // Size: header(1+4+1) + entities(count*22) + wave(6) + names(1 + count*36)
+    int required = 6 + (msg->entity_count * 22) + 6 + (1 + msg->player_count * 36);
     if (buffer_size < required) return -1;
     
     int offset = 0;
@@ -184,11 +184,23 @@ int serialize_state(const StateMessage* msg, uint8_t* buffer, int buffer_size) {
         buffer[offset++] = e->active ? 1 : 0;
     }
     
-    // NEW: Wave system data
+    // Wave system data
     buffer[offset++] = msg->current_wave;     // 1 byte
     buffer[offset++] = msg->wave_active;      // 1 byte
     write_float(&buffer[offset], msg->wave_countdown);  // 4 bytes
     offset += 4;
+    
+    // NEW: Player names
+    buffer[offset++] = msg->player_count;  // 1 byte
+    for (int i = 0; i < msg->player_count && i < 4; i++) {
+        // Player ID (4 bytes)
+        write_uint32(&buffer[offset], msg->players[i].player_id);
+        offset += 4;
+        
+        // Name (32 bytes)
+        memcpy(&buffer[offset], msg->players[i].name, 32);
+        offset += 32;
+    }
     
     return offset;
 }
@@ -242,7 +254,7 @@ int deserialize_state(const uint8_t* buffer, int length, StateMessage* msg) {
         e->active = buffer[offset++] != 0;
     }
     
-    // NEW: Wave system data (if available)
+    // Wave system data (if available)
     if (offset + 6 <= length) {
         msg->current_wave = buffer[offset++];
         msg->wave_active = buffer[offset++];
@@ -252,6 +264,23 @@ int deserialize_state(const uint8_t* buffer, int length, StateMessage* msg) {
         msg->current_wave = 0;
         msg->wave_active = 0;
         msg->wave_countdown = 0.0f;
+    }
+    
+    // NEW: Player names (if available)
+    if (offset + 1 <= length) {
+        msg->player_count = buffer[offset++];
+        for (int i = 0; i < msg->player_count && i < 4 && offset + 36 <= length; i++) {
+            // Player ID
+            msg->players[i].player_id = read_uint32(&buffer[offset]);
+            offset += 4;
+            
+            // Name
+            memcpy(msg->players[i].name, &buffer[offset], 32);
+            msg->players[i].name[31] = '\0';  // Ensure null-terminated
+            offset += 32;
+        }
+    } else {
+        msg->player_count = 0;
     }
     
     return offset;

@@ -28,7 +28,8 @@ typedef struct {
     uint32_t player_id;        // Their entity ID
     float last_packet_time;    // Time of last packet (for timeout)
     bool connected;
-    int kills;                 // NEW: Kill counter
+    int kills;                 // Kill counter
+    char player_name[32];      // NEW: Store player name
 } NetworkClient;
 
 // Game state (updated)

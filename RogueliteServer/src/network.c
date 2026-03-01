@@ -140,9 +140,14 @@ void network_receive_packets(GameState *game, float delta_time)
         {
             ConnectMessage msg;
             deserialize_connect(buffer, recv_len, &msg);
+            
+            // NEW: Store player name
+            strncpy(client->player_name, msg.player_name, 31);
+            client->player_name[31] = '\0';  // Ensure null-terminated
+            
             printf("Player '%s' connected (assigned ID: %u)\n", msg.player_name, client->player_id);
             
-            // NEW: Send WELCOME message with their player ID
+            // Send WELCOME message with their player ID
             uint8_t welcome_buffer[16];
             welcome_buffer[0] = MSG_WELCOME;  // Message type
             welcome_buffer[1] = (client->player_id >> 24) & 0xFF;  // Player ID (big-endian)
@@ -275,6 +280,17 @@ EntityState *es = &state.entities[state.entity_count++];
     state.current_wave = (uint8_t)game->current_wave;
     state.wave_active = game->wave_active ? 1 : 0;
     state.wave_countdown = game->wave_countdown;
+    
+    // NEW: Pack player names
+    state.player_count = 0;
+    for (int i = 0; i < MAX_CLIENTS && state.player_count < 4; i++) {
+        if (game->clients[i].connected) {
+            state.players[state.player_count].player_id = game->clients[i].player_id;
+            strncpy(state.players[state.player_count].name, game->clients[i].player_name, 31);
+            state.players[state.player_count].name[31] = '\0';
+            state.player_count++;
+        }
+    }
 
     // Serialize
     uint8_t buffer[MAX_PACKET_SIZE];

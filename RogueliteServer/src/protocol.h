@@ -59,6 +59,13 @@ typedef struct {
     uint8_t current_wave;
     uint8_t wave_active;      // 1 = active, 0 = countdown
     float wave_countdown;     // Seconds until next wave
+    
+    // NEW: Player names (for displaying above characters)
+    uint8_t player_count;     // Number of connected players
+    struct {
+        uint32_t player_id;   // Player entity ID
+        char name[32];        // Player name
+    } players[4];             // Max 4 players
 } StateMessage;
 
 // Serialization functions
